@@ -1,6 +1,6 @@
 .idea/
 node_modules/
 
-ts-dist/
+ts-output/
 
 package-lock.json
