@@ -1,0 +1,4 @@
+dash
+	.configure({
+		outlet: ['#main']
+	});

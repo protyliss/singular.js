@@ -1,0 +1,18 @@
+{
+  "name": "js-dash",
+  "version": "2.2.1",
+  "description": "",
+  "main": "dist/dash.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "protyliss@gmail.com",
+  "license": "ISC",
+  "devDependencies": {
+    "gulp": "^4.0.2",
+    "gulp-rollup-each": "^3.0.2",
+    "gulp-typescript": "^6.0.0-alpha.1",
+    "typescript": "^4.5.4"
+  }
+}
