@@ -1,12 +1,15 @@
 /**
 	dash.js
 	the tiny framework for un-complex structure.
-	@version 2.2.1
+	@version 2.3.3
  */
 var dash = (function () {
     'use strict';
 
-    const { documentElement: HTML, head: HEAD, body: BODY } = document;
+    let HTML;
+    let HEAD;
+    let BODY;
+    let START_HTML;
     const { href: START_PATH, origin: ORIGIN } = location;
     const { from: FROM } = Array;
     const resolveFactory = () => Promise.resolve();
@@ -23,23 +26,40 @@ var dash = (function () {
     let LOADED = false;
     let CURRENT_PATH = START_PATH;
     const CONFIGURE = {
-        outlet: null
+        htmlSelectors: null,
+        classSelectors: null,
+        enableKeepStyles: false,
+        enableSearchString: false,
+        enableHashString: false
     };
+    const FRAGMENT_HTML = (() => {
+        const fragment = document.createDocumentFragment();
+        const fragmentHtml = document.createElement('html');
+        fragment.appendChild(fragmentHtml);
+        return fragmentHtml;
+    })();
     function dash(callback) {
         return dash.run(callback);
     }
     dash.configure = function (configure) {
+        if (configure.htmlSelectors) {
+            if (typeof configure.htmlSelectors === 'string') {
+                configure.htmlSelectors = [configure.htmlSelectors];
+            }
+            if (configure.htmlSelectors.indexOf('body') > -1) {
+                configure.htmlSelectors = null;
+            }
+        }
+        if (configure.classSelectors) {
+            if (typeof configure.classSelectors === 'string') {
+                configure.classSelectors = [configure.classSelectors];
+            }
+        }
         const keys = Object.keys(configure);
         let current = keys.length;
         while (current-- > 0) {
             const key = keys[current];
-            const value = configure[key];
-            if (value) {
-                CONFIGURE[key] = configure[key];
-            }
-        }
-        if (configure.outlet && configure.outlet.indexOf('body') > -1) {
-            configure.outlet = null;
+            CONFIGURE[key] = configure[key];
         }
         return dash;
     };
@@ -55,7 +75,7 @@ var dash = (function () {
         const link = document.createElement('link');
         return {
             link,
-            promise: new Promise((resolve, reject) => {
+            promise: new Promise((resolve) => {
                 const resolver = () => resolve();
                 link.onload = resolver;
                 link.onerror = resolver;
@@ -69,7 +89,7 @@ var dash = (function () {
         const script = document.createElement('script');
         return {
             script,
-            promise: new Promise((resolve, reject) => {
+            promise: new Promise((resolve) => {
                 const resolver = () => resolve();
                 script.onload = resolver;
                 script.onerror = resolver;
@@ -83,20 +103,20 @@ var dash = (function () {
         const store = DOM[CURRENT_PATH].run;
         store[store.length] = callback;
         if (LOADED) {
-            callback();
+            callback(BODY);
         }
         return dash;
     };
     dash.runEvery = function (callback) {
         GLOBAL_RUN[GLOBAL_RUN.length] = callback;
         if (LOADED) {
-            callback();
+            callback(BODY);
         }
         return dash;
     };
-    dash.route = function (href, outlet = null) {
+    dash.route = function (href, htmlSelectors) {
         try {
-            route(href, outlet);
+            route(href, htmlSelectors);
         }
         catch (reason) {
             console.debug(reason);
@@ -115,16 +135,14 @@ var dash = (function () {
         }
         return dash;
     };
-    let START_HTML = HTML.outerHTML;
-    function route(href, outlet = null) {
-        let dom = getDOM(START_HTML);
+    function route(href, htmlSelectors) {
+        let dom = getDOMBase(START_HTML, href, CONFIGURE.htmlSelectors);
         START_HTML = null;
         const startDom = DOM[START_PATH];
         startDom.title = document.title;
         startDom.styles = dom.styles;
         startDom.scripts = dom.scripts;
         startDom.html = dom.html;
-        dom = null;
         RENDERED_STYLES = getStyleElement(HTML).reduce((map, link) => {
             map[link.href] = link;
             return map;
@@ -141,15 +159,15 @@ var dash = (function () {
             anchor.setAttribute('href', anchor.href);
         });
         // @ts-ignore
-        return (route = function (href, outlet) {
+        return (route = function (href, htmlSelectors) {
             // console.debug(`[dash] Route: ${href}`);
-            if (!outlet) {
-                outlet = CONFIGURE.outlet;
+            if (!htmlSelectors) {
+                htmlSelectors = CONFIGURE.htmlSelectors;
             }
             LOADED = false;
             CURRENT_PATH = href;
             window.scrollTo(0, 0);
-            document.title = href.substr(href.indexOf(':') + 3);
+            document.title = href.substring(href.indexOf(':') + 3);
             const cache = DOM[href];
             if (cache) {
                 render(cache);
@@ -158,7 +176,7 @@ var dash = (function () {
                 fetch(href)
                     .then(responseText)
                     .then(html => {
-                    parse(href, html, outlet);
+                    parse(href, html, htmlSelectors);
                 })
                     .catch(reason => console.warn(reason));
             }
@@ -167,38 +185,58 @@ var dash = (function () {
             return response.text();
         }
     }
-    function parse(href, rawHtml, outlet) {
-        const { title, scripts, styles, html, fragmentHtml } = getDOM(rawHtml, href, outlet);
+    function parse(href, rawHtml, htmlSelectors) {
+        if (!CONFIGURE.enableHashString) {
+            const index = href.indexOf('#');
+            if (index > -1) {
+                href = href.substring(0, index);
+            }
+        }
+        if (!CONFIGURE.enableSearchString) {
+            const searchIndex = href.indexOf('?');
+            const hashIndex = href.indexOf('#');
+            if (searchIndex > -1) {
+                href = (href.substring(0, searchIndex)
+                    + (hashIndex > -1 ?
+                        href.substring(hashIndex) :
+                        ''));
+            }
+        }
         const dom = {
-            title,
-            scripts,
-            styles,
-            html,
+            ...getDOMBase(rawHtml, href, htmlSelectors),
             run: []
         };
         DOM[href] = dom;
-        render(dom, fragmentHtml);
+        render(dom);
     }
-    function getDOM(rawHtml, href, outlet) {
-        const fragment = document.createDocumentFragment();
-        const fragmentHtml = document.createElement('html');
-        fragment.appendChild(fragmentHtml);
-        fragmentHtml.innerHTML = rawHtml;
-        const title = (fragmentHtml.getElementsByTagName('TITLE')[0] || { innerText: 'Untitled' }).innerText;
-        const styleElements = getStyleElement(fragmentHtml);
-        const scriptElements = getScriptElement(fragmentHtml);
+    function getDOMBase(rawHtml, href, htmlSelectors) {
+        FRAGMENT_HTML.innerHTML = rawHtml;
+        const title = (FRAGMENT_HTML.getElementsByTagName('TITLE')[0] || {}).innerText || href;
+        let current;
+        const { classSelectors } = CONFIGURE;
+        let classMap = null;
+        if (classSelectors) {
+            classMap = {};
+            current = classSelectors.length;
+            while (current-- > 0) {
+                const selector = classSelectors[current];
+                classMap[selector] = (FRAGMENT_HTML.getElementsByTagName(selector)[0] || {}).className || '';
+            }
+        }
+        const styleElements = getStyleElement(FRAGMENT_HTML);
+        const scriptElements = getScriptElement(FRAGMENT_HTML);
         const styles = getStyleHref(styleElements);
         const scripts = getScriptSrc(scriptElements);
-        let current = scriptElements.length;
+        current = scriptElements.length;
         while (current-- > 0) {
             removeChild(scriptElements[current]);
         }
         let html;
-        if (outlet) {
+        if (htmlSelectors) {
             const targetHTML = [];
-            let current = outlet.length;
+            let current = htmlSelectors.length;
             while (current-- > 0) {
-                const target = fragmentHtml.querySelector(outlet[current]);
+                const target = FRAGMENT_HTML.querySelector('#' + htmlSelectors[current]);
                 if (target) {
                     targetHTML[targetHTML.length] = target.outerHTML;
                 }
@@ -206,35 +244,41 @@ var dash = (function () {
             html = targetHTML.join('');
         }
         else {
-            html = fragmentHtml.outerHTML;
+            html = FRAGMENT_HTML.outerHTML;
         }
         return {
-            fragmentHtml,
+            fragmentHtml: FRAGMENT_HTML,
             title,
             styles,
             scripts,
+            classMap,
             html
         };
     }
-    function render(dom, fragmentHtml) {
-        if (!fragmentHtml) {
-            const fragment = document.createDocumentFragment();
-            fragmentHtml = document.createElement('html');
-            fragment.appendChild(fragmentHtml);
-        }
-        const { title, styles, scripts, html } = dom;
+    function render(dom) {
+        const { title, styles, scripts, classMap, html } = dom;
         if (title) {
             document.title = title;
         }
-        fragmentHtml.innerHTML = html;
-        const { outlet } = CONFIGURE;
-        if (outlet) {
-            let current = outlet.length;
+        const { htmlSelectors, classSelectors } = CONFIGURE;
+        if (classSelectors && classMap) {
+            let current = classSelectors.length;
             while (current-- > 0) {
-                const selector = outlet[current];
-                const from = fragmentHtml.querySelector(selector);
-                const to = BODY.querySelector(selector);
-                if (from && to?.parentNode) {
+                const selector = classSelectors[current];
+                const target = HTML.querySelector(selector);
+                if (target) {
+                    target.className = classMap[selector];
+                }
+            }
+        }
+        FRAGMENT_HTML.innerHTML = html;
+        if (htmlSelectors) {
+            let current = htmlSelectors.length;
+            while (current-- > 0) {
+                const selector = htmlSelectors[current];
+                const from = FRAGMENT_HTML.querySelector('#' + selector);
+                const to = BODY.querySelector('#' + selector);
+                if (from && to) {
                     const parent = to.parentNode;
                     parent.replaceChild(from, to);
                 }
@@ -242,8 +286,8 @@ var dash = (function () {
         }
         else {
             BODY.innerHTML = '';
-            BODY.append(...(fragmentHtml.getElementsByTagName('BODY')[0]
-                || fragmentHtml).children);
+            BODY.append(...(FRAGMENT_HTML.getElementsByTagName('BODY')[0]
+                || FRAGMENT_HTML).children);
         }
         const { loadStyle, loadScript } = dash;
         const elements = [];
@@ -251,15 +295,17 @@ var dash = (function () {
         let end;
         let current;
         const removeStyles = [];
-        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
-        current = renderedStyleHrefs.length;
-        while (current-- > 0) {
-            let href = renderedStyleHrefs[current];
-            if (styles.indexOf(href) > -1) {
-                continue;
+        if (!CONFIGURE.enableKeepStyles) {
+            const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+            current = renderedStyleHrefs.length;
+            while (current-- > 0) {
+                let href = renderedStyleHrefs[current];
+                if (styles.indexOf(href) > -1) {
+                    continue;
+                }
+                removeStyles[removeStyles.length] = RENDERED_STYLES[href];
+                delete RENDERED_STYLES[href];
             }
-            removeStyles[removeStyles.length] = RENDERED_STYLES[href];
-            delete RENDERED_STYLES[href];
         }
         // add external stylesheet
         end = styles.length;
@@ -342,9 +388,12 @@ var dash = (function () {
             .then(() => {
             onLoaded();
         })
-            .catch(reason => console.warn(reason));
+            .catch(reason => {
+            console.warn(reason);
+            location.reload();
+        });
     }
-    function onLoaded(outlet = BODY) {
+    function onLoaded(changedElement = BODY) {
         // console.debug('[dash] Loaded');
         LOADED = true;
         const store = DOM[CURRENT_PATH];
@@ -352,7 +401,7 @@ var dash = (function () {
         const end = callbacks.length;
         let current = -1;
         while (++current < end) {
-            callbacks[current](outlet);
+            callbacks[current](changedElement);
         }
     }
     function seriesReduceFunction(promise, callback) {
@@ -378,15 +427,22 @@ var dash = (function () {
                 node._dashAnchor = false;
                 return true;
             }
-            const { href } = anchor;
-            if (!href.startsWith(ORIGIN) || anchor.download) {
-                node._dashAnchor = false;
-                return true;
-            }
-            node._dashAnchor = anchor;
             node = anchor;
         }
-        dash.route(node.href);
+        const { href } = node;
+        const rawHref = node.getAttribute('href');
+        console.warn(rawHref);
+        if (!href.startsWith(ORIGIN)
+            || node.download
+            || (rawHref && rawHref.startsWith('#'))) {
+            node._dashAnchor = false;
+            return true;
+        }
+        node._dashAnchor = node;
+        const inlineOutlet = node?.dataset?.outlet;
+        dash.route(node.href, inlineOutlet ?
+            inlineOutlet.split(',') :
+            undefined);
         return stop(event);
     }
     function onPopstate(event) {
@@ -401,7 +457,14 @@ var dash = (function () {
         event.preventDefault();
         return false;
     }
-    addEventListener('DOMContentLoaded', onLoad);
+    function initialize() {
+        HTML = document.documentElement;
+        HEAD = document.head;
+        BODY = document.body;
+        START_HTML = HTML.outerHTML;
+        onLoad();
+    }
+    addEventListener('DOMContentLoaded', initialize);
     addEventListener('popstate', onPopstate);
     addEventListener('click', bodyOnClick);
 

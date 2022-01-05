@@ -1,13 +1,54 @@
 interface DashConfigure {
-    outlet: undefined | null | string[];
+    /**
+     * Changeable Element's ID after Routed
+     * @default null
+     * @description
+     *  - null | 'body': Change all Children of BODY
+     *  - 'id': Change Single Element
+     *  - ['id1' 'id2']: Change Multiple Elements
+     */
+    htmlSelectors: undefined | null | string | string[];
+
+    /**
+     * Changeable Element Class Attribute after Routed
+     * @default null
+     * @description
+     *   Copy Class Attribute with Ignore outlet Option
+     */
+    classSelectors: undefined | null | string | string[];
+
+    /**
+     * Does not Remove & Reload CSS after Routed
+     * @default false;
+     */
+    enableKeepStyles: boolean;
+
+    /**
+     * Does not Ignore Search String when Make Cache
+     * @default false
+     */
+    enableSearchString: boolean;
+
+    /**
+     * Does not Ignore Hash String when Make Cache
+     * @default false
+     */
+    enableHashString: boolean;
 }
 
-interface DashDOM {
+interface DashDOMBase {
     title: string;
     styles: string[];
     scripts: string[];
+
+    classMap: null | Record<string, string>;
+
     html: string;
-    run: Function[];
+    fragmentHtml: HTMLHtmlElement
+}
+
+interface DashDOM extends DashDOMBase {
+    run: ChangedElementCallback[];
 }
 
 interface DashState {
@@ -16,12 +57,18 @@ interface DashState {
     }
 }
 
-type voidPromiseCallback = (...args: any) => Promise<void>;
+type VoidPromiseCallback = (...args: any) => Promise<void>;
 type DashAnchor = HTMLAnchorElement & { _dashAnchor?: false | HTMLAnchorElement };
-type Child<T> = T & { parentNode: HTMLElement };
+type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 
-const {documentElement: HTML, head: HEAD, body: BODY} = document;
+type ChangedElementCallback = (changedElement: HTMLElement) => void;
+
+let HTML: HTMLElement;
+let HEAD: HTMLHeadElement;
+let BODY: HTMLElement;
+let START_HTML: string;
+
 const {href: START_PATH, origin: ORIGIN} = location;
 const {from: FROM} = Array;
 const resolveFactory = () => Promise.resolve();
@@ -32,10 +79,10 @@ const DOM: Record<string, DashDOM> = {
     } as any as DashDOM)
 }
 
-const GLOBAL_RUN: Function[] = [];
+const GLOBAL_RUN: ChangedElementCallback[] = [];
 
-const LOAD_SERIES: voidPromiseCallback[] = [resolveFactory];
-const LOAD_PARALLEL: voidPromiseCallback[] = [resolveFactory];
+const LOAD_SERIES: VoidPromiseCallback[] = [resolveFactory];
+const LOAD_PARALLEL: VoidPromiseCallback[] = [resolveFactory];
 
 let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
 
@@ -46,39 +93,60 @@ let LOADED = false
 let CURRENT_PATH = START_PATH;
 
 const CONFIGURE: DashConfigure = {
-    outlet: null
+    htmlSelectors: null,
+    classSelectors: null,
+    enableKeepStyles: false,
+    enableSearchString: false,
+    enableHashString: false
 }
 
-function dash(callback: voidPromiseCallback) {
+const FRAGMENT_HTML = (() => {
+    const fragment = document.createDocumentFragment();
+    const fragmentHtml = document.createElement('html');
+    fragment.appendChild(fragmentHtml);
+
+    return fragmentHtml;
+})();
+
+function dash(callback: VoidPromiseCallback) {
     return dash.run(callback)
 }
 
-dash.configure = function (configure: Partial<DashConfigure>) {
-    const keys = Object.keys(configure);
+dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
+    if (configure.htmlSelectors) {
+        if (typeof configure.htmlSelectors === 'string') {
+            configure.htmlSelectors = [configure.htmlSelectors];
+        }
 
-    let current = keys.length;
-    while (current-- > 0) {
-        const key = keys[current] as keyof DashConfigure;
-        const value = configure[key];
-        if (value) {
-            CONFIGURE[key] = configure[key];
+        if (configure.htmlSelectors.indexOf('body') > -1) {
+            configure.htmlSelectors = null;
         }
     }
 
-    if (configure.outlet && configure.outlet.indexOf('body') > -1) {
-        configure.outlet = null;
+    if (configure.classSelectors) {
+        if (typeof configure.classSelectors === 'string') {
+            configure.classSelectors = [configure.classSelectors];
+        }
     }
+
+    const keys = Object.keys(configure) as Array<keyof T>;
+    let current = keys.length;
+    while (current-- > 0) {
+        const key = keys[current];
+        (CONFIGURE as T)[key] = configure[key];
+    }
+
 
     return dash;
 }
 
 
-dash.load = function (callback: voidPromiseCallback) {
+dash.load = function (callback: VoidPromiseCallback) {
     LOAD_SERIES[LOAD_SERIES.length] = callback;
     return dash;
 }
 
-dash.loadParallel = function (callback: voidPromiseCallback) {
+dash.loadParallel = function (callback: VoidPromiseCallback) {
     LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
     return dash;
 }
@@ -88,7 +156,7 @@ dash.loadStyle = function (href: string) {
 
     return {
         link,
-        promise: new Promise<void>((resolve, reject) => {
+        promise: new Promise<void>((resolve) => {
             const resolver = () => resolve();
             link.onload = resolver;
             link.onerror = resolver;
@@ -105,7 +173,7 @@ dash.loadScript = function (src: string, async = true) {
 
     return {
         script,
-        promise: new Promise<void>((resolve, reject) => {
+        promise: new Promise<void>((resolve) => {
             const resolver = () => resolve();
             script.onload = resolver;
             script.onerror = resolver;
@@ -117,35 +185,36 @@ dash.loadScript = function (src: string, async = true) {
     }
 };
 
-dash.run = function (callback: Function) {
+dash.run = function (callback: ChangedElementCallback) {
     const store = DOM[CURRENT_PATH].run;
     store[store.length] = callback;
 
     if (LOADED) {
-        callback();
+        callback(BODY);
     }
 
     return dash;
 }
 
-dash.runEvery = function (callback: Function) {
+dash.runEvery = function (callback: ChangedElementCallback) {
     GLOBAL_RUN[GLOBAL_RUN.length] = callback;
 
     if (LOADED) {
-        callback();
+        callback(BODY);
     }
 
     return dash;
 }
 
-dash.route = function (href: string, outlet = null) {
+dash.route = function (href: string, htmlSelectors?: string[]) {
     try {
-        route(href, outlet);
+        route(href, htmlSelectors);
     } catch (reason) {
         console.debug(reason);
         location.replace(href);
         return null;
     }
+
     history.pushState(
         {
             dash: {href}
@@ -167,10 +236,8 @@ dash.changed = function (target: HTMLElement = BODY) {
 }
 
 
-let START_HTML = HTML.outerHTML;
-
-function route(this: any, href: string, outlet = null) {
-    let dom = getDOM(START_HTML, href);
+function route(this: any, href: string, htmlSelectors?: string[]) {
+    let dom = getDOMBase(START_HTML, href, CONFIGURE.htmlSelectors as string[]);
     START_HTML = null as any;
 
     const startDom = DOM[START_PATH];
@@ -179,8 +246,6 @@ function route(this: any, href: string, outlet = null) {
     startDom.styles = dom.styles;
     startDom.scripts = dom.scripts;
     startDom.html = dom.html;
-
-    dom = null as any;
 
     RENDERED_STYLES = getStyleElement(HTML).reduce(
         (map, link) => {
@@ -209,18 +274,18 @@ function route(this: any, href: string, outlet = null) {
     });
 
     // @ts-ignore
-    return (route = function (href, outlet?) {
+    return (route = function (href, htmlSelectors?) {
         // console.debug(`[dash] Route: ${href}`);
 
-        if (!outlet) {
-            outlet = CONFIGURE.outlet;
+        if (!htmlSelectors) {
+            htmlSelectors = CONFIGURE.htmlSelectors;
         }
 
         LOADED = false;
         CURRENT_PATH = href;
 
         window.scrollTo(0, 0);
-        document.title = href.substr(href.indexOf(':') + 3);
+        document.title = href.substring(href.indexOf(':') + 3);
 
         const cache = DOM[href];
 
@@ -230,7 +295,7 @@ function route(this: any, href: string, outlet = null) {
             fetch(href)
                 .then(responseText)
                 .then(html => {
-                    parse(href, html, outlet);
+                    parse(href, html, htmlSelectors);
                 })
                 .catch(reason => console.warn(reason));
         }
@@ -242,91 +307,125 @@ function route(this: any, href: string, outlet = null) {
 }
 
 
-function parse(href: string, rawHtml: string, outlet?: string[]) {
-    const {title, scripts, styles, html, fragmentHtml} = getDOM(rawHtml, href, outlet);
+function parse(href: string, rawHtml: string, htmlSelectors?: string[]) {
+    if (!CONFIGURE.enableHashString) {
+        const index = href.indexOf('#');
+        if (index > -1) {
+            href = href.substring(0, index);
+        }
+    }
+
+    if (!CONFIGURE.enableSearchString) {
+        const searchIndex = href.indexOf('?');
+        const hashIndex = href.indexOf('#');
+        if (searchIndex > -1) {
+            href = (
+                href.substring(0, searchIndex)
+                + (
+                    hashIndex > -1 ?
+                        href.substring(hashIndex) :
+                        ''
+                )
+            );
+        }
+    }
 
     const dom: DashDOM = {
-        title,
-        scripts,
-        styles,
-        html,
+        ...getDOMBase(rawHtml, href, htmlSelectors),
         run: []
     }
 
     DOM[href] = dom;
 
-    render(dom, fragmentHtml);
+    render(dom);
 }
 
-function getDOM(rawHtml: string, href: string, outlet?: string[]) {
-    const fragment = document.createDocumentFragment();
-    const fragmentHtml = document.createElement('html');
-    fragment.appendChild(fragmentHtml);
+function getDOMBase(rawHtml: string, href: string, htmlSelectors?: string[]): DashDOMBase {
+    FRAGMENT_HTML.innerHTML = rawHtml;
 
-    fragmentHtml.innerHTML = rawHtml;
+    const title = (FRAGMENT_HTML.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || href;
 
-    const title = (fragmentHtml.getElementsByTagName('TITLE')[0] as HTMLElement || {innerText: 'Untitled'}).innerText;
 
-    const styleElements = getStyleElement(fragmentHtml);
-    const scriptElements = getScriptElement(fragmentHtml);
+    let current: number;
 
+    const {classSelectors} = CONFIGURE;
+
+    let classMap: null | Record<string, string> = null;
+    if (classSelectors) {
+        classMap = {};
+        current = classSelectors.length
+        while (current-- > 0) {
+            const selector = classSelectors[current];
+            classMap[selector] = (FRAGMENT_HTML.getElementsByTagName(selector)[0] || {}).className || '';
+        }
+    }
+
+    const styleElements = getStyleElement(FRAGMENT_HTML);
+    const scriptElements = getScriptElement(FRAGMENT_HTML);
     const styles = getStyleHref(styleElements);
     const scripts = getScriptSrc(scriptElements);
 
-    let current = scriptElements.length;
+    current = scriptElements.length;
     while (current-- > 0) {
         removeChild(scriptElements[current]);
     }
 
     let html: string;
-    if (outlet) {
+    if (htmlSelectors) {
         const targetHTML = [];
-        let current = outlet.length;
+        let current = htmlSelectors.length;
         while (current-- > 0) {
-            const target = fragmentHtml.querySelector(outlet[current]);
+            const target = FRAGMENT_HTML.querySelector('#' + htmlSelectors[current]);
             if (target) {
                 targetHTML[targetHTML.length] = target.outerHTML;
             }
         }
+
         html = targetHTML.join('');
     } else {
-        html = fragmentHtml.outerHTML;
+        html = FRAGMENT_HTML.outerHTML;
     }
 
     return {
-        fragmentHtml,
+        fragmentHtml: FRAGMENT_HTML,
         title,
         styles,
         scripts,
+        classMap,
         html
     }
 }
 
-function render(dom: DashDOM, fragmentHtml?: HTMLElement) {
-    if (!fragmentHtml) {
-        const fragment = document.createDocumentFragment();
-        fragmentHtml = document.createElement('html');
-        fragment.appendChild(fragmentHtml);
-    }
-
-    const {title, styles, scripts, html} = dom;
+function render(dom: DashDOM) {
+    const {title, styles, scripts, classMap, html} = dom;
 
     if (title) {
         document.title = title;
     }
 
-    fragmentHtml.innerHTML = html;
+    const {htmlSelectors, classSelectors} = CONFIGURE;
 
-    const {outlet} = CONFIGURE;
-
-    if (outlet) {
-        let current = outlet.length;
+    if (classSelectors && classMap) {
+        let current = classSelectors.length;
         while (current-- > 0) {
-            const selector = outlet[current];
-            const from = fragmentHtml.querySelector(selector);
-            const to = BODY.querySelector(selector);
+            const selector = classSelectors[current];
+            const target = HTML.querySelector(selector);
+            if (target) {
+                target.className = classMap[selector];
+            }
+        }
+    }
 
-            if (from && to?.parentNode) {
+    FRAGMENT_HTML.innerHTML = html;
+
+    if (htmlSelectors) {
+        let current = htmlSelectors.length;
+        while (current-- > 0) {
+            const selector = htmlSelectors[current];
+            const from = FRAGMENT_HTML.querySelector('#' + selector);
+            const to = BODY.querySelector('#' + selector);
+
+            if (from && to) {
                 const parent = to.parentNode as HTMLElement;
                 parent.replaceChild(from, to);
             }
@@ -334,8 +433,8 @@ function render(dom: DashDOM, fragmentHtml?: HTMLElement) {
     } else {
         BODY.innerHTML = '';
         BODY.append(...(
-            fragmentHtml.getElementsByTagName('BODY')[0]
-            || fragmentHtml).children
+            FRAGMENT_HTML.getElementsByTagName('BODY')[0]
+            || FRAGMENT_HTML).children
         );
     }
 
@@ -348,16 +447,19 @@ function render(dom: DashDOM, fragmentHtml?: HTMLElement) {
     let current: number;
 
     const removeStyles: Children<HTMLLinkElement> = [];
-    const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
 
-    current = renderedStyleHrefs.length;
-    while (current-- > 0) {
-        let href = renderedStyleHrefs[current];
-        if (styles.indexOf(href) > -1) {
-            continue;
+    if (!CONFIGURE.enableKeepStyles) {
+        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+
+        current = renderedStyleHrefs.length;
+        while (current-- > 0) {
+            let href = renderedStyleHrefs[current];
+            if (styles.indexOf(href) > -1) {
+                continue;
+            }
+            removeStyles[removeStyles.length] = RENDERED_STYLES[href] as Child<HTMLLinkElement>;
+            delete RENDERED_STYLES[href];
         }
-        removeStyles[removeStyles.length] = RENDERED_STYLES[href] as Child<HTMLLinkElement>;
-        delete RENDERED_STYLES[href];
     }
 
     // add external stylesheet
@@ -398,7 +500,6 @@ function render(dom: DashDOM, fragmentHtml?: HTMLElement) {
             while (current-- > 0) {
                 removeChild(removeStyles[current]);
             }
-
             onLoad();
         });
 }
@@ -456,10 +557,13 @@ function onLoad() {
         .then(() => {
             onLoaded();
         })
-        .catch(reason => console.warn(reason));
+        .catch(reason => {
+            console.warn(reason);
+            location.reload();
+        });
 }
 
-function onLoaded(outlet = BODY) {
+function onLoaded(changedElement = BODY) {
     // console.debug('[dash] Loaded');
     LOADED = true;
 
@@ -471,17 +575,17 @@ function onLoaded(outlet = BODY) {
     let current = -1;
 
     while (++current < end) {
-        callbacks[current](outlet);
+        callbacks[current](changedElement);
     }
 }
 
-function seriesReduceFunction(promise: Promise<void>, callback: voidPromiseCallback) {
+function seriesReduceFunction(promise: Promise<void>, callback: VoidPromiseCallback) {
     return promise.then(() => {
         return callback();
     });
 }
 
-function promiseMapFunction(callback: voidPromiseCallback) {
+function promiseMapFunction(callback: VoidPromiseCallback) {
     return callback();
 }
 
@@ -504,17 +608,31 @@ function bodyOnClick(event: MouseEvent) {
             node._dashAnchor = false;
             return true;
         }
-        const {href} = anchor;
-        if (!href.startsWith(ORIGIN) || anchor.download) {
-            node._dashAnchor = false;
-            return true;
-        }
-
-        node._dashAnchor = anchor;
         node = anchor;
     }
 
-    dash.route(node.href);
+    const {href} = node;
+    const rawHref = node.getAttribute('href');
+    console.warn(rawHref);
+
+    if (!href.startsWith(ORIGIN)
+        || node.download
+        || (rawHref && rawHref.startsWith('#'))
+    ) {
+        node._dashAnchor = false;
+        return true;
+    }
+
+    node._dashAnchor = node;
+
+    const inlineOutlet = node?.dataset?.outlet;
+
+    dash.route(
+        node.href,
+        inlineOutlet ?
+            inlineOutlet.split(',') :
+            undefined
+    );
 
     return stop(event);
 }
@@ -534,7 +652,16 @@ function stop(event: Event) {
     return false;
 }
 
-addEventListener('DOMContentLoaded', onLoad);
+function initialize() {
+    HTML = document.documentElement;
+    HEAD = document.head;
+    BODY = document.body;
+
+    START_HTML = HTML.outerHTML;
+    onLoad();
+}
+
+addEventListener('DOMContentLoaded', initialize);
 addEventListener('popstate', onPopstate);
 addEventListener('click', bodyOnClick);
 

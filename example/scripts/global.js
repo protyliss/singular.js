@@ -1,4 +1,7 @@
 dash
 	.configure({
-		outlet: ['#main']
+		htmlSelectors : 'main',
+		classSelectors: 'body',
+		enableKeepStyles: true,
+		enableHashString: true
 	});

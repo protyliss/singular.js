@@ -1,6 +1,6 @@
 {
   "name": "js-dash",
-  "version": "2.2.1",
+  "version": "2.3.3",
   "description": "",
   "main": "dist/dash.js",
   "type": "module",
