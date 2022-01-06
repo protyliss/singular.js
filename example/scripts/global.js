@@ -4,4 +4,5 @@ dash
 		classSelectors: 'body',
 		enableKeepStyles: true,
 		enableHashString: true
-	});
+	})
+	.activeLink('nav')

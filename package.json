@@ -1,7 +1,7 @@
 {
   "name": "js-dash",
-  "version": "2.3.4",
-  "description": "",
+  "version": "2.5.0",
+  "description": "Tiny pluggable framework for transform the MPA as SPA-like",
   "main": "dist/dash.js",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
     "gulp": "^4.0.2",
     "gulp-rollup-each": "^3.0.2",
     "gulp-typescript": "^6.0.0-alpha.1",
+    "rollup-plugin-iife-namespace": "^0.0.2",
     "typescript": "^4.5.4"
   }
 }

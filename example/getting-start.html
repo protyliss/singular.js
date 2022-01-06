@@ -29,9 +29,180 @@
 <main id="main">
     <h1>Getting Start</h1>
 
-    <textarea class="code"><script src="dash.js"></script></textarea>
+    <section>
+        <h2>Limitables</h2>
 
-    Just add dash.js to your document, then working with &lt;A> Element
+        <ol>
+            <li>
+                Case of Cannot modify Original Script
+            </li>
+        </ol>
+    </section>
+    <section>
+        <h2>Add Dash</h2>
+        <textarea class="code"><script src="dash.js"></script></textarea>
+
+        Just add dash.js to your document, then working with &lt;A> Element
+    </section>
+
+    <section>
+        <h2>Wrap the Codes</h2>
+
+        <p>
+            Dash will load all of Script in Single page.
+            It may make not expected error like the duplicated declare syntax.
+        </p>
+        <p>
+            Should be make certainly closure and Execution Time to each script file.
+        </p>
+
+        <h3>Execution Order</h3>
+
+        <ol>
+            <li>
+                <ul>
+                    <li>
+                        <ol>
+                            <li>dash.require</li>
+                            <li>dash.require</li>
+                            <li>dash.require</li>
+                        </ol>
+                    </li>
+                    <li>
+                        dash.asyncRequire
+                    </li>
+                    <li>
+                        dash.asyncRequire
+                    </li>
+                    <li>
+                        dash.asyncRequire
+                    </li>
+                </ul>
+            </li>
+            <li>
+                dash.load
+            </li>
+            <li>
+                dash.enter
+            </li>
+            <li>
+                dash.exit
+            </li>
+            <li>
+                dash.unload
+            </li>
+        </ol>
+
+        <h3>require</h3>
+        <p>
+            Pre-works before Running Application.
+            Does not re-execution after first execute.
+        </p>
+
+        <h3>requireAsync</h3>
+        <p>
+            Pre-works before Running Application.
+            Does not re-execution after first execute.
+        </p>
+
+        <h3>ready</h3>
+        <p>
+            Execute on <em>Document which it was imported.</em>
+            Does not re-execution after first execute.
+
+
+        </p>
+        <ul>
+            <li>Replace <code>window.addEventListener('DOMContentLoaded', callback)</code></li>
+            <li>jQuery
+                <ul>
+                    <li>Replace <code>$(callback)</code></li>
+                    <li>Replace <code>$.ready(callback)</code></li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>load</h3>
+        <p>
+            Execute on <em>All Documents</em>
+        </p>
+        <ul>
+            <li>Replace <code>window.addEventListener('DOMContentLoaded', callback)</code></li>
+            <li>jQuery
+                <ul>
+                    <li>Replace <code>$(callback)</code></li>
+                    <li>Replace <code>$.ready(callback)</code></li>
+                </ul>
+            </li>
+        </ul>
+
+        <h3>enter</h3>
+        <p>
+            Execute on <em>Document which it was imported.</em>
+        </p>
+        <ul>
+            <li>Replace <code>window.addEventListener('DOMContentLoaded', callback)</code></li>
+            <li>jQuery
+                <ul>
+                    <li>Replace <code>$(callback)</code></li>
+                    <li>Replace <code>$.ready(callback)</code></li>
+                </ul>
+            </li>
+        </ul>
+
+
+        <h3>exit</h3>
+        <p>
+            Execute on <em>Document which it was imported.</em>
+        </p>
+
+        <h3>unload</h3>
+        <p>
+            Execute on <em>All Documents</em>
+        </p>
+    </section>
+
+    <h2>Examples</h2>
+
+    <h3>Run Once</h3>
+    <div class="replace-codes">
+        <div class="replace-code">
+            <h4>Before</h4>
+            <pre class="code">alert('This page in development progress');</pre>
+        </div>
+        <div class="replace-code">
+            <h4>After</h4>
+            <pre class="code">dash.enter(() => {
+        alert('This page in development progress');
+});</pre>
+        </div>
+    </div>
+
+
+    <h3>Run Forever</h3>
+    <div class="replace-codes">
+        <div class="replace-code">
+            <h4>Before</h4>
+            <pre class="code">addEventListener('DOMContentLoaded', () => {
+    setInterval(() => {
+        const time = document.createElement('time');
+        time.innerHTML = Date.now();
+        document.body.append(time);
+    }, 1000);
+});</pre>
+        </div>
+        <div class="replace-code">
+            <h4>After</h4>
+            <pre class="code">dash.ready(() => {
+    setInterval(() => {
+        const time = document.createElement('time');
+        time.innerHTML = Date.now();
+        document.body.append(time);
+    }, 1000);
+});</pre>
+        </div>
+    </div>
+
 </main>
 
 <footer>
@@ -39,6 +210,7 @@
 </footer>
 
 <script src="../dist/dash.js"></script>
+<script src="../dist/dash-ui.js"></script>
 <script src="scripts/global.js"></script>
 </body>
 </html>

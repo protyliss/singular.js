@@ -15,16 +15,15 @@ var dash = (function () {
     const resolveFactory = () => Promise.resolve();
     const DOM = {
         [START_PATH]: {
-            run: []
+            enterCallbacks: [],
+            exitCallbacks: []
         }
     };
-    const GLOBAL_RUN = [];
+    const READY_CALLBACKS = [];
+    const LOAD_CALLBACKS = [];
+    const UNLOAD_CALLBACKS = [];
     const LOAD_SERIES = [resolveFactory];
     const LOAD_PARALLEL = [resolveFactory];
-    let RENDERED_STYLES = {};
-    let RENDERED_SCRIPTS = {};
-    let LOADED = false;
-    let CURRENT_PATH = START_PATH;
     const CONFIGURE = {
         development: false,
         htmlSelectors: null,
@@ -33,15 +32,28 @@ var dash = (function () {
         enableSearchString: false,
         enableHashString: false
     };
+    let RENDERED_STYLES = {};
+    let RENDERED_SCRIPTS = {};
+    let LOADED = false;
+    let CURRENT_PATH = START_PATH;
     const FRAGMENT_HTML = (() => {
         const fragment = document.createDocumentFragment();
         const fragmentHtml = document.createElement('html');
         fragment.appendChild(fragmentHtml);
         return fragmentHtml;
     })();
+    let FETCH_CONTROLLER;
+    /**
+     * @alias dash.enter
+     * @param callback
+     */
     function dash(callback) {
-        return dash.run(callback);
+        return dash.enter(callback);
     }
+    /**
+     * Set Configure
+     * @param configure
+     */
     dash.configure = function (configure) {
         if (configure.htmlSelectors) {
             if (typeof configure.htmlSelectors === 'string') {
@@ -64,15 +76,32 @@ var dash = (function () {
         }
         return dash;
     };
-    dash.load = function (callback) {
+    /**
+     * Set Series Callback Before Initialize to Load
+     * @description
+     *   Callbacks Call as Single Thread
+     *   If Previous Callback to failed, Does not Move to Next Callback.
+     * @param callback
+     */
+    dash.require = function (callback) {
         LOAD_SERIES[LOAD_SERIES.length] = callback;
         return dash;
     };
-    dash.loadParallel = function (callback) {
+    /**
+     * Set Parallel Callback Before Initialize to Load
+     * @description
+     *   Callbacks Call as Multiple Thread
+     * @param callback
+     */
+    dash.asyncRequire = function (callback) {
         LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
         return dash;
     };
-    dash.loadStyle = function (href) {
+    /**
+     * Add External Stylesheet to <HEAD> Using <LINK>
+     * @param href
+     */
+    dash.addStyle = function (href) {
         const link = document.createElement('link');
         return {
             link,
@@ -86,7 +115,11 @@ var dash = (function () {
             })
         };
     };
-    dash.loadScript = function (src, async = true) {
+    /**
+     * Add External Stylesheet to <HEAD> Using <SCRIPT>
+     * @param href
+     */
+    dash.addScript = function (src, async = true) {
         const script = document.createElement('script');
         return {
             script,
@@ -100,21 +133,58 @@ var dash = (function () {
             })
         };
     };
-    dash.run = function (callback) {
-        const store = DOM[CURRENT_PATH].run;
+    /**
+     * Run Once in Declared Document after DOMContentLoaded
+     * @param callback
+     */
+    dash.ready = function (callback) {
+        READY_CALLBACKS[READY_CALLBACKS.length] = callback;
+        if (LOADED) {
+            callback(BODY);
+        }
+        return dash;
+    };
+    /**
+     * Run Everytime in Every Document after DOMContentLoaded
+     * @param callback
+     */
+    dash.load = function (callback) {
+        LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
+        if (LOADED) {
+            callback(BODY);
+        }
+        return dash;
+    };
+    dash.unload = function (callback) {
+        UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
+        return dash;
+    };
+    /**
+     * Run Everytime in Declared Document after DOMContentLoaded
+     * @param callback
+     */
+    dash.enter = function (callback) {
+        const store = DOM[CURRENT_PATH].enterCallbacks;
         store[store.length] = callback;
         if (LOADED) {
             callback(BODY);
         }
         return dash;
     };
-    dash.runEvery = function (callback) {
-        GLOBAL_RUN[GLOBAL_RUN.length] = callback;
-        if (LOADED) {
-            callback(BODY);
-        }
+    /**
+     * Run Everytime in Declared Document after beforeunload
+     * @param callback
+     */
+    dash.exit = function (callback) {
+        const store = DOM[CURRENT_PATH].exitCallbacks;
+        store[store.length] = callback;
         return dash;
     };
+    /**
+     * Move to Other Document
+     * @param href
+     * @param htmlSelectors
+     */
     dash.route = function (href, htmlSelectors) {
         try {
             route(href, htmlSelectors);
@@ -130,11 +200,15 @@ var dash = (function () {
             dash: { href }
         }, href, href);
     };
+    /**
+     * Signal for DOM Changed by any codes
+     * @param target
+     */
     dash.changed = function (target = BODY) {
-        const end = GLOBAL_RUN.length;
+        const end = READY_CALLBACKS.length;
         let current = -1;
         while (++current < end) {
-            GLOBAL_RUN[current](target);
+            READY_CALLBACKS[current](target);
         }
         return dash;
     };
@@ -163,7 +237,23 @@ var dash = (function () {
         });
         // @ts-ignore
         return (route = function (href, htmlSelectors) {
-            console.debug(`[dash] ${href}`);
+            // console.debug(`[dash] ${href}`);
+            if (LOADED) {
+                const callbacks = DOM[CURRENT_PATH].exitCallbacks.concat(UNLOAD_CALLBACKS);
+                const end = callbacks.length;
+                let current = -1;
+                try {
+                    while (++current < end) {
+                        callbacks[current]();
+                    }
+                }
+                catch (reason) {
+                    console.warn(reason);
+                }
+            }
+            else if (FETCH_CONTROLLER) {
+                FETCH_CONTROLLER.abort();
+            }
             if (!htmlSelectors) {
                 htmlSelectors = CONFIGURE.htmlSelectors;
             }
@@ -177,12 +267,19 @@ var dash = (function () {
                 render(cache);
             }
             else {
-                fetch(href)
+                FETCH_CONTROLLER = new AbortController();
+                fetch(href, {
+                    signal: FETCH_CONTROLLER.signal
+                })
                     .then(responseText)
                     .then(html => {
                     parse(href, html, htmlSelectors);
                 })
-                    .catch(reason => console.warn(reason));
+                    .catch(reason => {
+                    if (!(reason instanceof DOMException)) {
+                        console.warn(reason);
+                    }
+                });
             }
         }).apply(this, arguments);
         function responseText(response) {
@@ -192,7 +289,8 @@ var dash = (function () {
     function parse(href, rawHtml, htmlSelectors) {
         const dom = {
             ...getDOMBase(rawHtml, href, htmlSelectors),
-            run: []
+            enterCallbacks: [],
+            exitCallbacks: []
         };
         DOM[CURRENT_PATH] = dom;
         render(dom);
@@ -296,33 +394,34 @@ var dash = (function () {
             BODY.append(...(FRAGMENT_HTML.getElementsByTagName('BODY')[0]
                 || FRAGMENT_HTML).children);
         }
-        const { loadStyle, loadScript } = dash;
+        const { addScript, addStyle } = dash;
         const elements = [];
         const onLoads = [Promise.resolve()];
         let end;
         let current;
-        const removeStyles = [];
-        if (!CONFIGURE.enableKeepStyles) {
-            const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
-            current = renderedStyleHrefs.length;
-            while (current-- > 0) {
-                let href = renderedStyleHrefs[current];
-                if (styles.indexOf(href) > -1) {
-                    continue;
-                }
-                removeStyles[removeStyles.length] = RENDERED_STYLES[href];
-                delete RENDERED_STYLES[href];
+        //if (!CONFIGURE.enableKeepStyles) {
+        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+        current = renderedStyleHrefs.length;
+        while (current-- > 0) {
+            let href = renderedStyleHrefs[current];
+            if (styles.indexOf(href) > -1) {
+                continue;
             }
+            RENDERED_STYLES[href].disabled = true;
+            // removeStyles[removeStyles.length] = RENDERED_STYLES[href] as Child<HTMLLinkElement>;
+            // delete RENDERED_STYLES[href];
         }
+        //}
         // add external stylesheet
         end = styles.length;
         current = -1;
         while (++current < end) {
             const href = styles[current];
             if (RENDERED_STYLES[href]) {
+                RENDERED_STYLES[href].disabled = false;
                 continue;
             }
-            const { link, promise } = loadStyle(href);
+            const { link, promise } = addStyle(href);
             RENDERED_STYLES[href] = link;
             onLoads[onLoads.length] = promise;
             elements[elements.length] = link;
@@ -335,7 +434,7 @@ var dash = (function () {
             if (RENDERED_SCRIPTS[src]) {
                 continue;
             }
-            const { script, promise } = loadScript(src);
+            const { script, promise } = addScript(src);
             RENDERED_SCRIPTS[src] = script;
             onLoads[onLoads.length] = promise;
             elements[elements.length] = script;
@@ -345,10 +444,10 @@ var dash = (function () {
         }
         Promise.all(onLoads)
             .then(() => {
-            let current = removeStyles.length;
-            while (current-- > 0) {
-                removeChild(removeStyles[current]);
-            }
+            // let current = removeStyles.length;
+            // while (current-- > 0) {
+            //     removeChild(removeStyles[current]);
+            // }
             onLoad();
         });
     }
@@ -412,7 +511,7 @@ var dash = (function () {
         // console.debug('[dash] Loaded');
         LOADED = true;
         const store = DOM[CURRENT_PATH];
-        const callbacks = GLOBAL_RUN.concat(store.run);
+        const callbacks = READY_CALLBACKS.concat(LOAD_CALLBACKS, store.enterCallbacks);
         const end = callbacks.length;
         let current = -1;
         while (++current < end) {

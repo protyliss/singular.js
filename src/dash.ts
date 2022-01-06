@@ -55,7 +55,8 @@ interface DashDOMBase {
 }
 
 interface DashDOM extends DashDOMBase {
-    run: ChangedElementCallback[];
+    enterCallbacks: ChangedElementCallback[];
+    exitCallbacks: Function[];
 }
 
 interface DashState {
@@ -82,22 +83,17 @@ const resolveFactory = () => Promise.resolve();
 
 const DOM: Record<string, DashDOM> = {
     [START_PATH]: ({
-        run: []
+        enterCallbacks: [],
+        exitCallbacks: []
     } as any as DashDOM)
 }
 
-const GLOBAL_RUN: ChangedElementCallback[] = [];
+const READY_CALLBACKS: ChangedElementCallback[] = [];
+const LOAD_CALLBACKS: ChangedElementCallback[] = [];
+const UNLOAD_CALLBACKS: Function[] = [];
 
 const LOAD_SERIES: VoidPromiseCallback[] = [resolveFactory];
 const LOAD_PARALLEL: VoidPromiseCallback[] = [resolveFactory];
-
-let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
-
-let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
-
-let LOADED = false
-
-let CURRENT_PATH = START_PATH;
 
 const CONFIGURE: DashConfigure = {
     development: false,
@@ -108,6 +104,14 @@ const CONFIGURE: DashConfigure = {
     enableHashString: false
 }
 
+let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
+
+let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
+
+let LOADED = false
+
+let CURRENT_PATH = START_PATH;
+
 const FRAGMENT_HTML = (() => {
     const fragment = document.createDocumentFragment();
     const fragmentHtml = document.createElement('html');
@@ -116,10 +120,20 @@ const FRAGMENT_HTML = (() => {
     return fragmentHtml;
 })();
 
+let FETCH_CONTROLLER: AbortController;
+
+/**
+ * @alias dash.enter
+ * @param callback
+ */
 function dash(callback: VoidPromiseCallback) {
-    return dash.run(callback)
+    return dash.enter(callback)
 }
 
+/**
+ * Set Configure
+ * @param configure
+ */
 dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
     if (configure.htmlSelectors) {
         if (typeof configure.htmlSelectors === 'string') {
@@ -147,18 +161,34 @@ dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
     return dash;
 }
 
-
-dash.load = function (callback: VoidPromiseCallback) {
+/**
+ * Set Series Callback Before Initialize to Load
+ * @description
+ *   Callbacks Call as Single Thread
+ *   If Previous Callback to failed, Does not Move to Next Callback.
+ * @param callback
+ */
+dash.require = function (callback: VoidPromiseCallback) {
     LOAD_SERIES[LOAD_SERIES.length] = callback;
     return dash;
 }
 
-dash.loadParallel = function (callback: VoidPromiseCallback) {
+/**
+ * Set Parallel Callback Before Initialize to Load
+ * @description
+ *   Callbacks Call as Multiple Thread
+ * @param callback
+ */
+dash.asyncRequire = function (callback: VoidPromiseCallback) {
     LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
     return dash;
 }
 
-dash.loadStyle = function (href: string) {
+/**
+ * Add External Stylesheet to <HEAD> Using <LINK>
+ * @param href
+ */
+dash.addStyle = function (href: string) {
     const link = document.createElement('link');
 
     return {
@@ -175,7 +205,11 @@ dash.loadStyle = function (href: string) {
     }
 };
 
-dash.loadScript = function (src: string, async = true) {
+/**
+ * Add External Stylesheet to <HEAD> Using <SCRIPT>
+ * @param href
+ */
+dash.addScript = function (src: string, async = true) {
     const script = document.createElement('script');
 
     return {
@@ -192,8 +226,46 @@ dash.loadScript = function (src: string, async = true) {
     }
 };
 
-dash.run = function (callback: ChangedElementCallback) {
-    const store = DOM[CURRENT_PATH].run;
+/**
+ * Run Once in Declared Document after DOMContentLoaded
+ * @param callback
+ */
+dash.ready = function (callback: ChangedElementCallback) {
+    READY_CALLBACKS[READY_CALLBACKS.length] = callback;
+
+    if (LOADED) {
+        callback(BODY);
+    }
+
+    return dash;
+}
+
+/**
+ * Run Everytime in Every Document after DOMContentLoaded
+ * @param callback
+ */
+dash.load = function (callback: ChangedElementCallback) {
+    LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
+
+    if (LOADED) {
+        callback(BODY);
+    }
+
+    return dash;
+}
+
+dash.unload = function (callback: Function) {
+    UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
+
+    return dash;
+}
+
+/**
+ * Run Everytime in Declared Document after DOMContentLoaded
+ * @param callback
+ */
+dash.enter = function (callback: ChangedElementCallback) {
+    const store = DOM[CURRENT_PATH].enterCallbacks;
     store[store.length] = callback;
 
     if (LOADED) {
@@ -203,16 +275,22 @@ dash.run = function (callback: ChangedElementCallback) {
     return dash;
 }
 
-dash.runEvery = function (callback: ChangedElementCallback) {
-    GLOBAL_RUN[GLOBAL_RUN.length] = callback;
-
-    if (LOADED) {
-        callback(BODY);
-    }
+/**
+ * Run Everytime in Declared Document after beforeunload
+ * @param callback
+ */
+dash.exit = function (callback: Function) {
+    const store = DOM[CURRENT_PATH].exitCallbacks;
+    store[store.length] = callback;
 
     return dash;
-}
+};
 
+/**
+ * Move to Other Document
+ * @param href
+ * @param htmlSelectors
+ */
 dash.route = function (href: string, htmlSelectors?: string[]) {
     try {
         route(href, htmlSelectors);
@@ -235,12 +313,16 @@ dash.route = function (href: string, htmlSelectors?: string[]) {
     );
 }
 
+/**
+ * Signal for DOM Changed by any codes
+ * @param target
+ */
 dash.changed = function (target: HTMLElement = BODY) {
-    const end = GLOBAL_RUN.length;
+    const end = READY_CALLBACKS.length;
     let current = -1;
 
     while (++current < end) {
-        GLOBAL_RUN[current](target);
+        READY_CALLBACKS[current](target);
     }
 
     return dash;
@@ -286,7 +368,23 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
 
     // @ts-ignore
     return (route = function (href, htmlSelectors?) {
-        console.debug(`[dash] ${href}`);
+        // console.debug(`[dash] ${href}`);
+
+        if (LOADED) {
+            const callbacks = DOM[CURRENT_PATH].exitCallbacks.concat(UNLOAD_CALLBACKS);
+            const end = callbacks.length;
+            let current = -1;
+
+            try {
+                while (++current < end) {
+                    callbacks[current]();
+                }
+            } catch (reason) {
+                console.warn(reason);
+            }
+        } else if (FETCH_CONTROLLER) {
+            FETCH_CONTROLLER.abort();
+        }
 
         if (!htmlSelectors) {
             htmlSelectors = CONFIGURE.htmlSelectors;
@@ -304,12 +402,20 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
             // console.debug(cache);
             render(cache);
         } else {
-            fetch(href)
+            FETCH_CONTROLLER = new AbortController();
+
+            fetch(href, {
+                signal: FETCH_CONTROLLER.signal
+            })
                 .then(responseText)
                 .then(html => {
                     parse(href, html, htmlSelectors);
                 })
-                .catch(reason => console.warn(reason));
+                .catch(reason => {
+                    if (!(reason instanceof DOMException)) {
+                        console.warn(reason)
+                    }
+                });
         }
     }).apply(this, arguments as any);
 
@@ -318,11 +424,11 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
     }
 }
 
-
 function parse(href: string, rawHtml: string, htmlSelectors?: string[]) {
     const dom: DashDOM = {
         ...getDOMBase(rawHtml, href, htmlSelectors),
-        run: []
+        enterCallbacks: [],
+        exitCallbacks: []
     }
 
     DOM[CURRENT_PATH] = dom;
@@ -454,7 +560,7 @@ function render(dom: DashDOM) {
     }
 
 
-    const {loadStyle, loadScript} = dash;
+    const {addScript, addStyle} = dash;
     const elements = [];
     const onLoads = [Promise.resolve()];
 
@@ -463,19 +569,20 @@ function render(dom: DashDOM) {
 
     const removeStyles: Children<HTMLLinkElement> = [];
 
-    if (!CONFIGURE.enableKeepStyles) {
-        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+    //if (!CONFIGURE.enableKeepStyles) {
+    const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
 
-        current = renderedStyleHrefs.length;
-        while (current-- > 0) {
-            let href = renderedStyleHrefs[current];
-            if (styles.indexOf(href) > -1) {
-                continue;
-            }
-            removeStyles[removeStyles.length] = RENDERED_STYLES[href] as Child<HTMLLinkElement>;
-            delete RENDERED_STYLES[href];
+    current = renderedStyleHrefs.length;
+    while (current-- > 0) {
+        let href = renderedStyleHrefs[current];
+        if (styles.indexOf(href) > -1) {
+            continue;
         }
+        RENDERED_STYLES[href].disabled = true;
+        // removeStyles[removeStyles.length] = RENDERED_STYLES[href] as Child<HTMLLinkElement>;
+        // delete RENDERED_STYLES[href];
     }
+    //}
 
     // add external stylesheet
     end = styles.length;
@@ -483,9 +590,10 @@ function render(dom: DashDOM) {
     while (++current < end) {
         const href = styles[current];
         if (RENDERED_STYLES[href]) {
+            RENDERED_STYLES[href].disabled = false;
             continue;
         }
-        const {link, promise} = loadStyle(href);
+        const {link, promise} = addStyle(href);
         RENDERED_STYLES[href] = link;
         onLoads[onLoads.length] = promise;
         elements[elements.length] = link;
@@ -499,7 +607,7 @@ function render(dom: DashDOM) {
         if (RENDERED_SCRIPTS[src]) {
             continue;
         }
-        const {script, promise} = loadScript(src);
+        const {script, promise} = addScript(src);
         RENDERED_SCRIPTS[src] = script;
         onLoads[onLoads.length] = promise;
         elements[elements.length] = script;
@@ -511,10 +619,10 @@ function render(dom: DashDOM) {
 
     Promise.all(onLoads)
         .then(() => {
-            let current = removeStyles.length;
-            while (current-- > 0) {
-                removeChild(removeStyles[current]);
-            }
+            // let current = removeStyles.length;
+            // while (current-- > 0) {
+            //     removeChild(removeStyles[current]);
+            // }
             onLoad();
         });
 }
@@ -591,7 +699,10 @@ function onLoaded(changedElement = BODY) {
 
     const store = DOM[CURRENT_PATH];
 
-    const callbacks = GLOBAL_RUN.concat(store.run);
+    const callbacks = READY_CALLBACKS.concat(
+        LOAD_CALLBACKS,
+        store.enterCallbacks
+    );
 
     const end = callbacks.length;
     let current = -1;

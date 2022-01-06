@@ -1,6 +1,7 @@
 import gulp from 'gulp';
 import typescript from 'gulp-typescript';
 import rollup from 'gulp-rollup-each';
+import iifeNS from 'rollup-plugin-iife-namespace';
 import FS from 'fs';
 
 function readJson(pathname) {
@@ -39,7 +40,12 @@ task('js-bundle', done => {
 				`.trim(),
 				name: 'dash',
 				format: 'iife'
-			}
+			},
+			// plugins: [
+			// 	iifeNS({
+			// 		context:'window.dash'
+			// 	})
+			// ]
 		}))
 		.pipe(dest('./dist'));
 })

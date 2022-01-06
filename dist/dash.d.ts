@@ -40,21 +40,28 @@ interface DashConfigure {
 }
 declare type VoidPromiseCallback = (...args: any) => Promise<void>;
 declare type ChangedElementCallback = (changedElement: HTMLElement) => void;
+/**
+ * @alias dash.enter
+ * @param callback
+ */
 declare function dash(callback: VoidPromiseCallback): typeof dash;
 declare namespace dash {
     var configure: <T extends Partial<DashConfigure>>(configure: T) => typeof dash;
-    var load: (callback: VoidPromiseCallback) => typeof dash;
-    var loadParallel: (callback: VoidPromiseCallback) => typeof dash;
-    var loadStyle: (href: string) => {
+    var require: (callback: VoidPromiseCallback) => typeof dash;
+    var asyncRequire: (callback: VoidPromiseCallback) => typeof dash;
+    var addStyle: (href: string) => {
         link: HTMLLinkElement;
         promise: Promise<void>;
     };
-    var loadScript: (src: string, async?: boolean) => {
+    var addScript: (src: string, async?: boolean) => {
         script: HTMLScriptElement;
         promise: Promise<void>;
     };
-    var run: (callback: ChangedElementCallback) => typeof dash;
-    var runEvery: (callback: ChangedElementCallback) => typeof dash;
+    var ready: (callback: ChangedElementCallback) => typeof dash;
+    var load: (callback: ChangedElementCallback) => typeof dash;
+    var unload: (callback: Function) => typeof dash;
+    var enter: (callback: ChangedElementCallback) => typeof dash;
+    var exit: (callback: Function) => typeof dash;
     var route: (href: string, htmlSelectors?: string[] | undefined) => null | undefined;
     var changed: (target?: HTMLElement) => typeof dash;
 }
