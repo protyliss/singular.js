@@ -1,7 +1,7 @@
 /**
 	dash.js
 	the tiny framework for un-complex structure.
-	@version 2.3.3
+	@version 2.3.4
  */
 var dash = (function () {
     'use strict';
@@ -26,6 +26,7 @@ var dash = (function () {
     let LOADED = false;
     let CURRENT_PATH = START_PATH;
     const CONFIGURE = {
+        development: false,
         htmlSelectors: null,
         classSelectors: null,
         enableKeepStyles: false,
@@ -119,8 +120,10 @@ var dash = (function () {
             route(href, htmlSelectors);
         }
         catch (reason) {
-            console.debug(reason);
-            location.replace(href);
+            console.warn(reason);
+            if (!CONFIGURE.development) {
+                location.replace(href);
+            }
             return null;
         }
         history.pushState({
@@ -138,7 +141,7 @@ var dash = (function () {
     function route(href, htmlSelectors) {
         let dom = getDOMBase(START_HTML, href, CONFIGURE.htmlSelectors);
         START_HTML = null;
-        const startDom = DOM[START_PATH];
+        const startDom = DOM[CURRENT_PATH];
         startDom.title = document.title;
         startDom.styles = dom.styles;
         startDom.scripts = dom.scripts;
@@ -160,16 +163,17 @@ var dash = (function () {
         });
         // @ts-ignore
         return (route = function (href, htmlSelectors) {
-            // console.debug(`[dash] Route: ${href}`);
+            console.debug(`[dash] ${href}`);
             if (!htmlSelectors) {
                 htmlSelectors = CONFIGURE.htmlSelectors;
             }
             LOADED = false;
-            CURRENT_PATH = href;
+            CURRENT_PATH = getDOMHref(href);
             window.scrollTo(0, 0);
             document.title = href.substring(href.indexOf(':') + 3);
-            const cache = DOM[href];
+            const cache = DOM[CURRENT_PATH];
             if (cache) {
+                // console.debug(cache);
                 render(cache);
             }
             else {
@@ -186,6 +190,14 @@ var dash = (function () {
         }
     }
     function parse(href, rawHtml, htmlSelectors) {
+        const dom = {
+            ...getDOMBase(rawHtml, href, htmlSelectors),
+            run: []
+        };
+        DOM[CURRENT_PATH] = dom;
+        render(dom);
+    }
+    function getDOMHref(href) {
         if (!CONFIGURE.enableHashString) {
             const index = href.indexOf('#');
             if (index > -1) {
@@ -202,12 +214,7 @@ var dash = (function () {
                         ''));
             }
         }
-        const dom = {
-            ...getDOMBase(rawHtml, href, htmlSelectors),
-            run: []
-        };
-        DOM[href] = dom;
-        render(dom);
+        return href;
     }
     function getDOMBase(rawHtml, href, htmlSelectors) {
         FRAGMENT_HTML.innerHTML = rawHtml;
@@ -380,17 +387,25 @@ var dash = (function () {
         }
     }
     function onLoad() {
-        // console.debug('[dash] load');
+        // console.debug('[dash] before load');
         Promise.all([
             LOAD_SERIES.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
             LOAD_PARALLEL.splice(1).map(promiseMapFunction)
         ])
             .then(() => {
-            onLoaded();
+            // console.debug('[dash] after load');
+            try {
+                onLoaded();
+            }
+            catch (reason) {
+                console.warn(reason);
+            }
         })
             .catch(reason => {
             console.warn(reason);
-            location.reload();
+            if (!CONFIGURE.development) {
+                location.reload();
+            }
         });
     }
     function onLoaded(changedElement = BODY) {
@@ -431,7 +446,6 @@ var dash = (function () {
         }
         const { href } = node;
         const rawHref = node.getAttribute('href');
-        console.warn(rawHref);
         if (!href.startsWith(ORIGIN)
             || node.download
             || (rawHref && rawHref.startsWith('#'))) {
@@ -462,6 +476,11 @@ var dash = (function () {
         HEAD = document.head;
         BODY = document.body;
         START_HTML = HTML.outerHTML;
+        CURRENT_PATH = getDOMHref(START_PATH);
+        if (CURRENT_PATH !== START_PATH) {
+            DOM[CURRENT_PATH] = { ...DOM[START_PATH] };
+            delete DOM[START_PATH];
+        }
         onLoad();
     }
     addEventListener('DOMContentLoaded', initialize);

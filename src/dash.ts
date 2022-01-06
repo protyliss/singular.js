@@ -1,5 +1,12 @@
 interface DashConfigure {
     /**
+     * Set Development Mode
+     * @description
+     *   Does not Reload Page after Occurred Error
+     * @default false
+     */
+    development: boolean;
+    /**
      * Changeable Element's ID after Routed
      * @default null
      * @description
@@ -93,6 +100,7 @@ let LOADED = false
 let CURRENT_PATH = START_PATH;
 
 const CONFIGURE: DashConfigure = {
+    development: false,
     htmlSelectors: null,
     classSelectors: null,
     enableKeepStyles: false,
@@ -135,7 +143,6 @@ dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
         const key = keys[current];
         (CONFIGURE as T)[key] = configure[key];
     }
-
 
     return dash;
 }
@@ -210,8 +217,12 @@ dash.route = function (href: string, htmlSelectors?: string[]) {
     try {
         route(href, htmlSelectors);
     } catch (reason) {
-        console.debug(reason);
-        location.replace(href);
+        console.warn(reason);
+
+        if (!CONFIGURE.development) {
+            location.replace(href);
+        }
+
         return null;
     }
 
@@ -240,7 +251,7 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
     let dom = getDOMBase(START_HTML, href, CONFIGURE.htmlSelectors as string[]);
     START_HTML = null as any;
 
-    const startDom = DOM[START_PATH];
+    const startDom = DOM[CURRENT_PATH];
 
     startDom.title = document.title;
     startDom.styles = dom.styles;
@@ -275,21 +286,22 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
 
     // @ts-ignore
     return (route = function (href, htmlSelectors?) {
-        // console.debug(`[dash] Route: ${href}`);
+        console.debug(`[dash] ${href}`);
 
         if (!htmlSelectors) {
             htmlSelectors = CONFIGURE.htmlSelectors;
         }
 
         LOADED = false;
-        CURRENT_PATH = href;
+        CURRENT_PATH = getDOMHref(href);
 
         window.scrollTo(0, 0);
         document.title = href.substring(href.indexOf(':') + 3);
 
-        const cache = DOM[href];
+        const cache = DOM[CURRENT_PATH];
 
         if (cache) {
+            // console.debug(cache);
             render(cache);
         } else {
             fetch(href)
@@ -308,6 +320,17 @@ function route(this: any, href: string, htmlSelectors?: string[]) {
 
 
 function parse(href: string, rawHtml: string, htmlSelectors?: string[]) {
+    const dom: DashDOM = {
+        ...getDOMBase(rawHtml, href, htmlSelectors),
+        run: []
+    }
+
+    DOM[CURRENT_PATH] = dom;
+
+    render(dom);
+}
+
+function getDOMHref(href: string) {
     if (!CONFIGURE.enableHashString) {
         const index = href.indexOf('#');
         if (index > -1) {
@@ -329,15 +352,7 @@ function parse(href: string, rawHtml: string, htmlSelectors?: string[]) {
             );
         }
     }
-
-    const dom: DashDOM = {
-        ...getDOMBase(rawHtml, href, htmlSelectors),
-        run: []
-    }
-
-    DOM[href] = dom;
-
-    render(dom);
+    return href;
 }
 
 function getDOMBase(rawHtml: string, href: string, htmlSelectors?: string[]): DashDOMBase {
@@ -549,17 +564,24 @@ function removeChild(node: HTMLElement) {
 }
 
 function onLoad() {
-    // console.debug('[dash] load');
+    // console.debug('[dash] before load');
     Promise.all([
         LOAD_SERIES.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
         LOAD_PARALLEL.splice(1).map(promiseMapFunction)
     ])
         .then(() => {
-            onLoaded();
+            // console.debug('[dash] after load');
+            try {
+                onLoaded();
+            } catch (reason) {
+                console.warn(reason)
+            }
         })
         .catch(reason => {
             console.warn(reason);
-            location.reload();
+            if (!CONFIGURE.development) {
+                location.reload();
+            }
         });
 }
 
@@ -613,7 +635,6 @@ function bodyOnClick(event: MouseEvent) {
 
     const {href} = node;
     const rawHref = node.getAttribute('href');
-    console.warn(rawHref);
 
     if (!href.startsWith(ORIGIN)
         || node.download
@@ -658,6 +679,14 @@ function initialize() {
     BODY = document.body;
 
     START_HTML = HTML.outerHTML;
+
+    CURRENT_PATH = getDOMHref(START_PATH);
+
+    if (CURRENT_PATH !== START_PATH) {
+        DOM[CURRENT_PATH] = {...DOM[START_PATH]};
+        delete DOM[START_PATH];
+    }
+
     onLoad();
 }
 

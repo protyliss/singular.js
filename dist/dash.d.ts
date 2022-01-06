@@ -1,5 +1,12 @@
 interface DashConfigure {
     /**
+     * Set Development Mode
+     * @description
+     *   Does not Reload Page after Occurred Error
+     * @default false
+     */
+    development: boolean;
+    /**
      * Changeable Element's ID after Routed
      * @default null
      * @description
