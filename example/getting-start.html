@@ -9,13 +9,13 @@
 
 <header>
     <h1>Dash</h1>
-    <p>Make MPA to Working like SPA</p>
+    <p>Make MPA as SPA-like</p>
 </header>
 
 <nav>
     <ul>
         <li>
-            <a href="./">Index</a>
+            <a href="./">Overview</a>
         </li>
         <li>
             <a href="./getting-start.html">Getting Start</a>
@@ -58,48 +58,41 @@
 
         <h3>Execution Order</h3>
 
-        <ol>
-            <li>
-                <ul>
-                    <li>
-                        <ol>
-                            <li>dash.require</li>
-                            <li>dash.require</li>
-                            <li>dash.require</li>
-                        </ol>
-                    </li>
-                    <li>
-                        dash.asyncRequire
-                    </li>
-                    <li>
-                        dash.asyncRequire
-                    </li>
-                    <li>
-                        dash.asyncRequire
-                    </li>
-                </ul>
-            </li>
-            <li>
-                dash.load
-            </li>
-            <li>
-                dash.enter
-            </li>
-            <li>
-                dash.exit
-            </li>
-            <li>
-                dash.unload
-            </li>
-        </ol>
+        <pre class="code">dash
+    .series(one)
+    .series(two)
+    .parallel(three)
+    .parallel(four)
+    .ready(five)
+    .load(six)
+    .enter(seven)
+    .exit(nine)
+    .unload(ten);</pre>
 
-        <h3>require</h3>
+        First Document:
+        <ul>
+            <li>one, three, four</li>
+            <li>two</li>
+            <li>five</li>
+            <li>six</li>
+            <li>seven</li>
+            <li>nine</li>
+            <li>ten</li>
+        </ul>
+
+        Next Documents:
+        <ul>
+            <li>six</li>
+            <li>ten</li>
+        </ul>
+
+        <h3>series</h3>
         <p>
             Pre-works before Running Application.
             Does not re-execution after first execute.
         </p>
 
-        <h3>requireAsync</h3>
+        <h3>parallel</h3>
         <p>
             Pre-works before Running Application.
             Does not re-execution after first execute.

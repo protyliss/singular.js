@@ -162,24 +162,24 @@ dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
 }
 
 /**
- * Set Series Callback Before Initialize to Load
+ * Set Series Callback for Bootstrap
  * @description
  *   Callbacks Call as Single Thread
  *   If Previous Callback to failed, Does not Move to Next Callback.
  * @param callback
  */
-dash.require = function (callback: VoidPromiseCallback) {
+dash.series = function (callback: VoidPromiseCallback) {
     LOAD_SERIES[LOAD_SERIES.length] = callback;
     return dash;
 }
 
 /**
- * Set Parallel Callback Before Initialize to Load
+ * Set Parallel Callback for Bootstrap
  * @description
  *   Callbacks Call as Multiple Thread
  * @param callback
  */
-dash.asyncRequire = function (callback: VoidPromiseCallback) {
+dash.parallel = function (callback: VoidPromiseCallback) {
     LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
     return dash;
 }
