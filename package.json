@@ -1,6 +1,6 @@
 {
   "name": "js-dash",
-  "version": "2.5.0",
+  "version": "2.5.1",
   "description": "Tiny pluggable framework for transform the MPA as SPA-like",
   "main": "dist/dash.js",
   "type": "module",

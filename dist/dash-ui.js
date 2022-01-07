@@ -1,7 +1,7 @@
 /**
 	dash.js
 	the tiny framework for un-complex structure.
-	@version 2.3.4
+	@version 2.5.0
  */
 (function () {
     'use strict';

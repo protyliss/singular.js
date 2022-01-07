@@ -1,7 +1,7 @@
 /**
 	dash.js
 	the tiny framework for un-complex structure.
-	@version 2.3.4
+	@version 2.5.0
  */
 var dash = (function () {
     'use strict';
@@ -19,11 +19,11 @@ var dash = (function () {
             exitCallbacks: []
         }
     };
+    const SERIES_CALLBACKS = [resolveFactory];
+    const PARALLEL_CALLBACKS = [resolveFactory];
     const READY_CALLBACKS = [];
     const LOAD_CALLBACKS = [];
     const UNLOAD_CALLBACKS = [];
-    const LOAD_SERIES = [resolveFactory];
-    const LOAD_PARALLEL = [resolveFactory];
     const CONFIGURE = {
         development: false,
         htmlSelectors: null,
@@ -77,24 +77,24 @@ var dash = (function () {
         return dash;
     };
     /**
-     * Set Series Callback Before Initialize to Load
+     * Set Series Callback for Bootstrap
      * @description
      *   Callbacks Call as Single Thread
      *   If Previous Callback to failed, Does not Move to Next Callback.
      * @param callback
      */
-    dash.require = function (callback) {
-        LOAD_SERIES[LOAD_SERIES.length] = callback;
+    dash.series = function (callback) {
+        SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
         return dash;
     };
     /**
-     * Set Parallel Callback Before Initialize to Load
+     * Set Parallel Callback for Bootstrap
      * @description
      *   Callbacks Call as Multiple Thread
      * @param callback
      */
-    dash.asyncRequire = function (callback) {
-        LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
+    dash.parallel = function (callback) {
+        PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
         return dash;
     };
     /**
@@ -205,10 +205,10 @@ var dash = (function () {
      * @param target
      */
     dash.changed = function (target = BODY) {
-        const end = READY_CALLBACKS.length;
+        const end = LOAD_CALLBACKS.length;
         let current = -1;
         while (++current < end) {
-            READY_CALLBACKS[current](target);
+            LOAD_CALLBACKS[current](target);
         }
         return dash;
     };
@@ -488,8 +488,8 @@ var dash = (function () {
     function onLoad() {
         // console.debug('[dash] before load');
         Promise.all([
-            LOAD_SERIES.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
-            LOAD_PARALLEL.splice(1).map(promiseMapFunction)
+            SERIES_CALLBACKS.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
+            PARALLEL_CALLBACKS.splice(1).map(promiseMapFunction)
         ])
             .then(() => {
             // console.debug('[dash] after load');

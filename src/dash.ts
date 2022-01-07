@@ -88,12 +88,11 @@ const DOM: Record<string, DashDOM> = {
     } as any as DashDOM)
 }
 
+const SERIES_CALLBACKS: VoidPromiseCallback[] = [resolveFactory];
+const PARALLEL_CALLBACKS: VoidPromiseCallback[] = [resolveFactory];
 const READY_CALLBACKS: ChangedElementCallback[] = [];
 const LOAD_CALLBACKS: ChangedElementCallback[] = [];
 const UNLOAD_CALLBACKS: Function[] = [];
-
-const LOAD_SERIES: VoidPromiseCallback[] = [resolveFactory];
-const LOAD_PARALLEL: VoidPromiseCallback[] = [resolveFactory];
 
 const CONFIGURE: DashConfigure = {
     development: false,
@@ -105,11 +104,8 @@ const CONFIGURE: DashConfigure = {
 }
 
 let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
-
 let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
-
 let LOADED = false
-
 let CURRENT_PATH = START_PATH;
 
 const FRAGMENT_HTML = (() => {
@@ -169,7 +165,7 @@ dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
  * @param callback
  */
 dash.series = function (callback: VoidPromiseCallback) {
-    LOAD_SERIES[LOAD_SERIES.length] = callback;
+    SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
     return dash;
 }
 
@@ -180,7 +176,7 @@ dash.series = function (callback: VoidPromiseCallback) {
  * @param callback
  */
 dash.parallel = function (callback: VoidPromiseCallback) {
-    LOAD_PARALLEL[LOAD_PARALLEL.length] = callback;
+    PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
     return dash;
 }
 
@@ -318,11 +314,11 @@ dash.route = function (href: string, htmlSelectors?: string[]) {
  * @param target
  */
 dash.changed = function (target: HTMLElement = BODY) {
-    const end = READY_CALLBACKS.length;
+    const end = LOAD_CALLBACKS.length;
     let current = -1;
 
     while (++current < end) {
-        READY_CALLBACKS[current](target);
+        LOAD_CALLBACKS[current](target);
     }
 
     return dash;
@@ -674,8 +670,8 @@ function removeChild(node: HTMLElement) {
 function onLoad() {
     // console.debug('[dash] before load');
     Promise.all([
-        LOAD_SERIES.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
-        LOAD_PARALLEL.splice(1).map(promiseMapFunction)
+        SERIES_CALLBACKS.splice(1).reduce(seriesReduceFunction, Promise.resolve()),
+        PARALLEL_CALLBACKS.splice(1).map(promiseMapFunction)
     ])
         .then(() => {
             // console.debug('[dash] after load');

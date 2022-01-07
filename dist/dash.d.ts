@@ -47,8 +47,8 @@ declare type ChangedElementCallback = (changedElement: HTMLElement) => void;
 declare function dash(callback: VoidPromiseCallback): typeof dash;
 declare namespace dash {
     var configure: <T extends Partial<DashConfigure>>(configure: T) => typeof dash;
-    var require: (callback: VoidPromiseCallback) => typeof dash;
-    var asyncRequire: (callback: VoidPromiseCallback) => typeof dash;
+    var series: (callback: VoidPromiseCallback) => typeof dash;
+    var parallel: (callback: VoidPromiseCallback) => typeof dash;
     var addStyle: (href: string) => {
         link: HTMLLinkElement;
         promise: Promise<void>;
