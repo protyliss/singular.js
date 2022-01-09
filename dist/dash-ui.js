@@ -1,68 +1,74 @@
-/**
-	dash.js
-	the tiny framework for un-complex structure.
-	@version 2.5.0
- */
-(function () {
-    'use strict';
+"use strict";
 
-    (function (dash) {
-        const ORIGIN_LENGTH = location.origin.length;
-        let ACTIVATED_LINKS = [];
-        dash.activeLink = function (selector) {
-            return dash
-                .load(() => {
-                activeLinks(selector);
-            })
-                .unload(inactiveLinks);
-        };
-        function activeLinks(selector) {
-            const containers = Array.from(document.querySelectorAll(selector));
-            let current = containers.length;
-            while (current-- > 0) {
-                activeLink(containers[current]);
-            }
-        }
-        function inactiveLinks() {
-            const anchors = ACTIVATED_LINKS;
-            let current = anchors.length;
-            while (current-- > 0) {
-                anchors[current].classList.remove('_active');
-            }
-            ACTIVATED_LINKS = [];
-        }
-        function activeLink(container) {
-            const currentPath = location.href.substring(ORIGIN_LENGTH);
-            const anchors = container.getElementsByTagName('A');
-            let current = anchors.length;
-            while (current-- > 0) {
-                let anchor = anchors[current];
-                if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
-                    continue;
-                }
-                activate(anchor);
-                anchor.focus();
-                anchor.blur();
-                do {
-                    let ul = anchor.closest('ul');
-                    if (ul) {
-                        const li = ul.closest('li');
-                        if (li) {
-                            anchor = li.getElementsByTagName('A')[0];
-                            if (anchor) {
-                                activate(anchor);
-                                continue;
-                            }
-                        }
-                    }
-                    break;
-                } while (anchor);
-            }
-        }
-        function activate(anchor) {
-            ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
-            anchor.classList.add('_active');
-        }
-    })(window['dash']);
+(function (dash) {
+  var ORIGIN_LENGTH = location.origin.length;
+  var ACTIVATED_LINKS = [];
 
-}());
+  dash.activeLink = function (selector) {
+    return dash.load(function () {
+      activeLinks(selector);
+    }).unload(inactiveLinks);
+  };
+
+  function activeLinks(selector) {
+    var containers = Array.from(document.querySelectorAll(selector));
+    var current = containers.length;
+
+    while (current-- > 0) {
+      activeLink(containers[current]);
+    }
+  }
+
+  function inactiveLinks() {
+    var anchors = ACTIVATED_LINKS;
+    var current = anchors.length;
+
+    while (current-- > 0) {
+      anchors[current].classList.remove('_active');
+    }
+
+    ACTIVATED_LINKS = [];
+  }
+
+  function activeLink(container) {
+    var currentPath = location.href.substring(ORIGIN_LENGTH);
+    var anchors = container.getElementsByTagName('A');
+    var current = anchors.length;
+
+    while (current-- > 0) {
+      var anchor = anchors[current];
+
+      if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
+        continue;
+      }
+
+      activate(anchor);
+      anchor.focus();
+      anchor.blur();
+
+      do {
+        var ul = anchor.closest('ul');
+
+        if (ul) {
+          var li = ul.closest('li');
+
+          if (li) {
+            anchor = li.getElementsByTagName('A')[0];
+
+            if (anchor) {
+              activate(anchor);
+              continue;
+            }
+          }
+        }
+
+        break;
+      } while (anchor);
+    }
+  }
+
+  function activate(anchor) {
+    ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+    anchor.classList.add('_active');
+  }
+})(window['dash']);
