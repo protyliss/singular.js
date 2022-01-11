@@ -329,7 +329,7 @@ const dash = (function (window, document, undefined) {
         let current = styleElements.length;
         while (current-- > 0) {
             const style = styleElements[current];
-            const {href} = style;
+            const href = getAbsoluteUrl(style, 'href');
             styles[styles.length] = href;
             RENDERED_STYLES[href] = style;
         }
@@ -337,7 +337,7 @@ const dash = (function (window, document, undefined) {
         current = scriptElements.length;
         while (current-- > 0) {
             const script = scriptElements[current];
-            const {src} = script;
+            const src = getAbsoluteUrl(script, 'src');
             scripts[scripts.length] = src;
             RENDERED_SCRIPTS[script.src] = script;
         }
@@ -574,18 +574,22 @@ const dash = (function (window, document, undefined) {
         const {addScript, addStyle} = dash;
         const elements = [];
         const imports = [Promise.resolve()];
-
+        const removeStyles: HTMLLinkElement[] = [];
         let end: number;
         let current: number;
 
-        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
-        current = renderedStyleHrefs.length;
-        while (current-- > 0) {
-            let href = renderedStyleHrefs[current];
-            if (styles.indexOf(href) > -1) {
-                continue;
+        if (!CONFIGURE.enableKeepStyles) {
+            const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+            current = renderedStyleHrefs.length;
+            while (current-- > 0) {
+                let href = renderedStyleHrefs[current];
+                if (styles.indexOf(href) > -1) {
+                    continue;
+                }
+                // RENDERED_STYLES[href].disabled = true;
+                removeStyles[removeStyles.length] = RENDERED_STYLES[href];
+                delete RENDERED_STYLES[href]
             }
-            RENDERED_STYLES[href].disabled = true;
         }
 
         // add external stylesheet
@@ -594,7 +598,7 @@ const dash = (function (window, document, undefined) {
         while (++current < end) {
             const href = styles[current];
             if (RENDERED_STYLES[href]) {
-                RENDERED_STYLES[href].disabled = false;
+                //     RENDERED_STYLES[href].disabled = false;
                 continue;
             }
             const {link, promise} = addStyle(href);
@@ -621,7 +625,15 @@ const dash = (function (window, document, undefined) {
             HEAD.append(...elements);
         }
 
-        Promise.all(imports).then(onLoad);
+        Promise.all(imports)
+            .then(() => {
+                let current = removeStyles.length;
+                while (current-- > 0) {
+                    const link = removeStyles[current];
+                    link!.parentNode!.removeChild(link);
+                }
+                onLoad();
+            })
     }
 
     function getStyleElement(container: HTMLElement): Children<HTMLLinkElement> {
@@ -682,7 +694,8 @@ const dash = (function (window, document, undefined) {
 
         let series = Promise.resolve();
         while (++current < end) {
-            series = series.then(() => SERIES_CALLBACKS[current]());
+            const callback = SERIES_CALLBACKS[current];
+            series = series.then(() => callback());
         }
 
         const prepares = [series];
@@ -699,7 +712,7 @@ const dash = (function (window, document, undefined) {
             .catch(catchReload);
     }
 
-    function onLoading(){
+    function onLoading() {
         // console.debug('[dash] after load');
         HTML.style.visibility = 'inherit';
         try {
@@ -709,7 +722,7 @@ const dash = (function (window, document, undefined) {
         }
     }
 
-    function catchReload(reason :Error){
+    function catchReload(reason: Error) {
         console.warn(reason);
         if (!CONFIGURE.development) {
             location.reload();
