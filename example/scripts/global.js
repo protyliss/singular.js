@@ -7,3 +7,7 @@ dash
 		enableHashString: true
 	})
 	.activeLink('nav')
+
+
+dash.session.set('test', {'test': 'tested'});
+console.log(dash.session.get('test'));

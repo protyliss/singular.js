@@ -570,6 +570,8 @@ const dash = (function (window, document, undefined) {
             );
         }
 
+        FRAGMENT_HTML.innerHTML = '';
+
 
         const {addScript, addStyle} = dash;
         const elements = [];

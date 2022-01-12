@@ -1,13 +1,16 @@
+import FS from 'fs';
 import gulp from 'gulp';
-//import gr2 from 'gulp-rollup-2';
-import rollup from 'gulp-rollup-each';
+
 import typescript from 'gulp-typescript';
+import babel from 'gulp-babel';
+import uglify from 'gulp-uglify';
+import sourceMap from 'gulp-sourcemaps';
+//import gr2 from 'gulp-rollup-2';
+// import rollup from 'gulp-rollup-each';
 // import typescript from '@rollup/plugin-typescript';
 // import nodeResolve from '@rollup/plugin-node-resolve';
 // import commonjs from '@rollup/plugin-commonjs';
-import babel from 'gulp-babel';
-import {terser} from 'rollup-plugin-terser';
-import FS from 'fs';
+//import {terser} from 'rollup-plugin-terser';
 
 function readJson(pathname) {
 	return JSON.parse(FS.readFileSync(pathname));
@@ -41,6 +44,7 @@ task('dts-copy', done => {
 
 task('js-bundle', done => {
 	return src(JS_FILES)
+		.pipe(sourceMap.init())
 		.pipe(babel({
 			presets: [
 				'@babel/preset-env'
@@ -61,6 +65,8 @@ task('js-bundle', done => {
 		// 		}
 		// 	)
 		// )
+		.pipe(uglify())
+		.pipe(sourceMap.write('./'))
 		.pipe(dest('./dist'));
 })
 
