@@ -802,7 +802,7 @@ const dash = (function (window, document, undefined) {
         function onPopstate(event) {
             const {state} = event;
 
-            if (state instanceof State) {
+            if (state && state.dash) {
                 route(state.dash.href);
             }
 

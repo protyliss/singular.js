@@ -97,11 +97,21 @@ interface dash {
             value
     }
 
+    function popSession(name: string){
+        sessionStorage.removeItem(getKey(name));
+        return dash
+    }
+
     function clearSession() {
         sessionStorage.clear();
         return dash;
     }
 
-    dash.session = {get: getSession, set: setSession, clear: clearSession};
+    dash.session = {
+        get: getSession,
+        set: setSession,
+        pop: popSession,
+        clear: clearSession
+    };
 
 })(window['dash' as any] as any);
