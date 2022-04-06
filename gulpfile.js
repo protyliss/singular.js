@@ -25,8 +25,7 @@ const JS_FILES                  = './ts-output/**/*.js';
 const tsProject = typescript.createProject('tsconfig.json');
 const banner    = `
 /**
-	dash.js
-	the tiny framework for un-complex structure.
+	singular
 	@version ${packageJson.version}
  */
 				`.trim();

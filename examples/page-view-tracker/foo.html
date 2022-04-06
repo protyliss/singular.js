@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>Page View Tracker - Singular Example</title>
+    <script src="../../dist/singular.js"></script>
+    <script src="./scripts.js"></script>
+</head>
+<body>
+<header>
+    <h1 id="heading">Page View Tracker - Foo</h1>
+</header>
+<nav>
+    <ul>
+        <li>
+            <a href="index.html">index.html</a>
+        </li>
+        <li>
+            <a href="foo.html">foo.html</a>
+        </li>
+        <li>
+            <a href="bar.html">bar.html</a>
+        </li>
+    </ul>
+</nav>
+<main>
+    <dl>
+        <dt>Total</dt>
+        <dd><span id="totalPage"></span> seconds.</dd>
+    </dl>
+    <dl>
+        <dt>Current Page</dt>
+        <dd><span id="currentPage"></span> seconds.</dd>
+    </dl>
+</main>
+<footer>
+    Logs:
+    <ul id="logs">
+    </ul>
+</footer>
+</body>
+</html>

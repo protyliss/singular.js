@@ -1,4 +1,4 @@
-interface DashConfigure {
+interface SingularConfigure {
     /**
      * Set Development Mode
      * @description
@@ -50,19 +50,25 @@ interface DashConfigure {
 }
 
 type VoidPromiseCallback = (...args: any) => Promise<void>;
-type DashAnchor = HTMLAnchorElement & { _dashAnchor?: false | HTMLAnchorElement };
+type SingularAnchor = HTMLAnchorElement & { _singularAnchor?: false | HTMLAnchorElement };
 type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElement: HTMLElement) => void;
 
-const dash = (function (window, document, undefined) {
+/**
+ * Singular
+ * One of Initial Series to Make Identity.
+
+ * @author protyliss
+ */
+const singular = (function (window, document, undefined) {
     const {href: START_PATH, origin: ORIGIN} = location;
     const {from: FROM} = Array;
 
     const READY_CALLBACKS: ChangedElementCallback[] = [];
     const LOAD_CALLBACKS: ChangedElementCallback[] = [];
     const UNLOAD_CALLBACKS: Function[] = [];
-    const CONFIGURE: DashConfigure = {
+    const CONFIGURE: SingularConfigure = {
         development: false,
         htmlSelectors: null,
         classSelectors: null,
@@ -104,12 +110,12 @@ const dash = (function (window, document, undefined) {
     }
 
     class State {
-        dash: {
+        singular: {
             href: string
         }
 
         constructor(href: string) {
-            this.dash = {
+            this.singular = {
                 href
             };
         }
@@ -120,18 +126,18 @@ const dash = (function (window, document, undefined) {
     };
 
     /**
-     * @alias dash.enter
+     * @alias singular.enter
      * @param callback
      */
-    function dash(callback: VoidPromiseCallback) {
-        return dash.enter(callback)
+    function singular(callback: VoidPromiseCallback) {
+        return singular.enter(callback)
     }
 
     /**
      * Set Configure
      * @param configure
      */
-    dash.configure = function <T extends Partial<DashConfigure>>(configure: T) {
+    singular.configure = function <T extends Partial<SingularConfigure>>(configure: T) {
         if (configure.htmlSelectors) {
             if (typeof configure.htmlSelectors === 'string') {
                 configure.htmlSelectors = [configure.htmlSelectors];
@@ -155,7 +161,7 @@ const dash = (function (window, document, undefined) {
             (CONFIGURE as T)[key] = configure[key];
         }
 
-        return dash;
+        return singular;
     }
 
     /**
@@ -165,9 +171,9 @@ const dash = (function (window, document, undefined) {
      *   If Previous Callback to failed, Does not Move to Next Callback.
      * @param callback
      */
-    dash.series = function (callback: VoidPromiseCallback) {
+    singular.series = function (callback: VoidPromiseCallback) {
         SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
-        return dash;
+        return singular;
     }
 
     /**
@@ -176,16 +182,16 @@ const dash = (function (window, document, undefined) {
      *   Callbacks Call as Multiple Thread
      * @param callback
      */
-    dash.parallel = function (callback: VoidPromiseCallback) {
+    singular.parallel = function (callback: VoidPromiseCallback) {
         PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
-        return dash;
+        return singular;
     }
 
     /**
      * Add External Stylesheet to <HEAD> Using <LINK>
      * @param href
      */
-    dash.addStyle = function (href: string) {
+    singular.addStyle = function (href: string) {
         const link = document.createElement('link');
 
         return {
@@ -207,7 +213,7 @@ const dash = (function (window, document, undefined) {
      * @param src
      * @param async
      */
-    dash.addScript = function (src: string, async = true) {
+    singular.addScript = function (src: string, async = true) {
         const script = document.createElement('script');
 
         return {
@@ -228,41 +234,41 @@ const dash = (function (window, document, undefined) {
      * Run Once in Declared Document after DOMContentLoaded
      * @param callback
      */
-    dash.ready = function (callback: ChangedElementCallback) {
+    singular.ready = function (callback: ChangedElementCallback) {
         READY_CALLBACKS[READY_CALLBACKS.length] = callback;
 
         if (LOADED) {
             callback(BODY);
         }
 
-        return dash;
+        return singular;
     }
 
     /**
      * Run Everytime in Every Document after DOMContentLoaded
      * @param callback
      */
-    dash.load = function (callback: ChangedElementCallback) {
+    singular.load = function (callback: ChangedElementCallback) {
         LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
 
         if (LOADED) {
             callback(BODY);
         }
 
-        return dash;
+        return singular;
     }
 
-    dash.unload = function (callback: Function) {
+    singular.unload = function (callback: Function) {
         UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
 
-        return dash;
+        return singular;
     }
 
     /**
      * Run Everytime in Declared Document after DOMContentLoaded
      * @param callback
      */
-    dash.enter = function (callback: ChangedElementCallback) {
+    singular.enter = function (callback: ChangedElementCallback) {
         const store = PAGES[CURRENT_PATH].enterCallbacks;
         store[store.length] = callback;
 
@@ -270,18 +276,18 @@ const dash = (function (window, document, undefined) {
             callback(BODY);
         }
 
-        return dash;
+        return singular;
     }
 
     /**
      * Run Everytime in Declared Document after beforeunload
      * @param callback
      */
-    dash.exit = function (callback: Function) {
+    singular.exit = function (callback: Function) {
         const store = PAGES[CURRENT_PATH].exitCallbacks;
         store[store.length] = callback;
 
-        return dash;
+        return singular;
     };
 
     /**
@@ -289,7 +295,7 @@ const dash = (function (window, document, undefined) {
      * @param href
      * @param htmlSelectors
      */
-    dash.route = function (href: string, htmlSelectors?: string[]) {
+    singular.route = function (href: string, htmlSelectors?: string[]) {
         try {
             route(href, htmlSelectors);
         } catch (reason) {
@@ -308,7 +314,7 @@ const dash = (function (window, document, undefined) {
      * Signal for DOM Changed by any codes
      * @param target
      */
-    dash.changed = function (target: HTMLElement = BODY) {
+    singular.changed = function (target: HTMLElement = BODY) {
         const end = LOAD_CALLBACKS.length;
         let current = -1;
 
@@ -316,7 +322,7 @@ const dash = (function (window, document, undefined) {
             LOAD_CALLBACKS[current](target);
         }
 
-        return dash;
+        return singular;
     }
 
     function route(this: any, href: string, htmlSelectors?: string[]) {
@@ -364,7 +370,7 @@ const dash = (function (window, document, undefined) {
 
         // @ts-ignore
         return (route = function (href, htmlSelectors?) {
-            // console.debug(`[dash] ${href}`);
+            // console.debug(`[singular] ${href}`);
 
             if (LOADED) {
                 const callbacks = PAGES[CURRENT_PATH].exitCallbacks.concat(UNLOAD_CALLBACKS);
@@ -573,7 +579,7 @@ const dash = (function (window, document, undefined) {
         FRAGMENT_HTML.innerHTML = '';
 
 
-        const {addScript, addStyle} = dash;
+        const {addScript, addStyle} = singular;
         const elements = [];
         const imports = [Promise.resolve()];
         const removeStyles: HTMLLinkElement[] = [];
@@ -689,7 +695,7 @@ const dash = (function (window, document, undefined) {
     }
 
     function onLoad() {
-        // console.debug('[dash] before load');
+        // console.debug('[singular] before load');
 
         const end = SERIES_CALLBACKS.length;
         let current = -1;
@@ -715,7 +721,7 @@ const dash = (function (window, document, undefined) {
     }
 
     function onLoading() {
-        // console.debug('[dash] after load');
+        // console.debug('[singular] after load');
         HTML.style.visibility = 'inherit';
         try {
             onLoaded();
@@ -732,15 +738,16 @@ const dash = (function (window, document, undefined) {
     }
 
     function onLoaded(changedElement = BODY) {
-        // console.debug('[dash] Loaded');
+        // console.debug('[singular] Loaded');
         LOADED = true;
 
         const store = PAGES[CURRENT_PATH];
 
-        const callbacks = READY_CALLBACKS.concat(
-            LOAD_CALLBACKS,
-            store.enterCallbacks
-        );
+        const callbacks = [
+            ...READY_CALLBACKS.splice(0, READY_CALLBACKS.length),
+            ...LOAD_CALLBACKS,
+            ...store.enterCallbacks
+        ];
 
         const end = callbacks.length;
         let current = -1;
@@ -753,7 +760,7 @@ const dash = (function (window, document, undefined) {
     addEventListener(
         'click',
         function onClick(event) {
-            let node = event.target as DashAnchor;
+            let node = event.target as SingularAnchor;
             const {tagName} = node;
 
             if (tagName === 'BODY') {
@@ -761,13 +768,13 @@ const dash = (function (window, document, undefined) {
             }
 
             if (tagName !== 'A') {
-                if (node?._dashAnchor === false) {
+                if (node?._singularAnchor === false) {
                     return true;
                 }
 
-                const anchor = node.closest('a') as DashAnchor;
+                const anchor = node.closest('a') as SingularAnchor;
                 if (!anchor || !anchor.href) {
-                    node._dashAnchor = false;
+                    node._singularAnchor = false;
                     return true;
                 }
                 node = anchor;
@@ -780,15 +787,15 @@ const dash = (function (window, document, undefined) {
                 || node.download
                 || (rawHref && rawHref.startsWith('#'))
             ) {
-                node._dashAnchor = false;
+                node._singularAnchor = false;
                 return true;
             }
 
-            node._dashAnchor = node;
+            node._singularAnchor = node;
 
             const inlineOutlet = node?.dataset?.outlet;
 
-            dash.route(node.href, inlineOutlet ? inlineOutlet.split(',') : undefined);
+            singular.route(node.href, inlineOutlet ? inlineOutlet.split(',') : undefined);
 
             event.stopPropagation();
             event.preventDefault();
@@ -802,8 +809,8 @@ const dash = (function (window, document, undefined) {
         function onPopstate(event) {
             const {state} = event;
 
-            if (state && state.dash) {
-                route(state.dash.href);
+            if (state && state.singular) {
+                route(state.singular.href);
             }
 
             return true;
@@ -831,5 +838,5 @@ const dash = (function (window, document, undefined) {
         }
     );
 
-    return dash;
+    return singular;
 })(window, document);

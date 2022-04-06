@@ -1,13 +1,11 @@
-interface dash {
-    activeLink(selector: string): dash;
-}
+/// <reference path="singular.ts" />
 
-(function (dash) {
+(function (singular) {
     const ORIGIN_LENGTH = location.origin.length;
     let ACTIVATED_LINKS: HTMLElement[] = [];
 
-    dash.activeLink = function (selector: string) {
-        return dash
+    singular.activeLink = function (selector: string) {
+        return singular
             .load(() => {
                 activeLinks(selector)
             })
@@ -71,4 +69,4 @@ interface dash {
         anchor.classList.add('_active');
     }
 
-})(window['dash' as any] as any)
+})(window['singular' as any] as any)

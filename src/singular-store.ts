@@ -1,12 +1,6 @@
-interface dash {
-    session: {
-        get: (name: string) => any,
-        set: (name: string, value: any) => dash,
-        clear: () => dash
-    }
-}
+/// <reference path="singular.ts" />
 
-(function (dash) {
+(function (singular) {
     const {fromCharCode: FROM_CHAR_CODE} = String;
     const {parse: PARSE, stringify: STRINGIFY} = JSON;
 
@@ -78,7 +72,7 @@ interface dash {
             )
         );
 
-        return dash;
+        return singular;
     }
 
     function getSession(name: string) {
@@ -99,19 +93,19 @@ interface dash {
 
     function popSession(name: string){
         sessionStorage.removeItem(getKey(name));
-        return dash
+        return singular
     }
 
     function clearSession() {
         sessionStorage.clear();
-        return dash;
+        return singular;
     }
 
-    dash.session = {
+    singular.session = {
         get: getSession,
         set: setSession,
         pop: popSession,
         clear: clearSession
     };
 
-})(window['dash' as any] as any);
+})(window['singular' as any] as any);
