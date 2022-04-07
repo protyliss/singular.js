@@ -14,7 +14,7 @@ interface SingularConfigure {
      *  - 'id': Change Single Element
      *  - ['id1' 'id2']: Change Multiple Elements
      */
-    htmlSelectors: undefined | null | string | string[];
+    elementIds: undefined | null | string | string[];
     /**
      * Changeable Element Class Attribute after Routed
      * @default null
@@ -23,7 +23,7 @@ interface SingularConfigure {
      */
     classSelectors: undefined | null | string | string[];
     /**
-     * Does not Reload HTML after Re-Routed
+     * Does not Reload document.documentElement after Re-Routed
      * @default false;
      */
     enableKeepHtml: boolean;
@@ -53,10 +53,8 @@ declare type Child<T = HTMLElement> = T & {
 declare type Children<T> = Array<Child<T>>;
 declare type ChangedElementCallback = (changedElement: HTMLElement) => void;
 /**
- * Singular
- * One of Initial Series to Make Identity.
-
- * @author protyliss
+ * @alias singular.enter
+ * @returns singular
  */
 declare const singular: {
     (callback: VoidPromiseCallback): any;
@@ -64,7 +62,7 @@ declare const singular: {
      * Set Configure
      * @param configure
      */
-    configure<T extends Partial<SingularConfigure>>(configure: T): any;
+    configure(configure: Partial<SingularConfigure>): any;
     /**
      * Set Series Callback for Bootstrap
      * @description
@@ -110,6 +108,7 @@ declare const singular: {
     unload(callback: Function): any;
     /**
      * Run Everytime in Declared Document after DOMContentLoaded
+     * @alias singular
      * @param callback
      */
     enter(callback: ChangedElementCallback): any;
@@ -120,10 +119,10 @@ declare const singular: {
     exit(callback: Function): any;
     /**
      * Move to Other Document
-     * @param href
-     * @param htmlSelectors
+     * @param requestUrl
+     * @param elementIds
      */
-    route(href: string, htmlSelectors?: string[] | undefined): null | undefined;
+    route(requestUrl: string, elementIds?: string[] | undefined): null | undefined;
     /**
      * Signal for DOM Changed by any codes
      * @param target

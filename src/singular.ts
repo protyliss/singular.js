@@ -14,7 +14,7 @@ interface SingularConfigure {
      *  - 'id': Change Single Element
      *  - ['id1' 'id2']: Change Multiple Elements
      */
-    htmlSelectors: undefined | null | string | string[];
+    elementIds: undefined | null | string | string[];
 
     /**
      * Changeable Element Class Attribute after Routed
@@ -25,7 +25,7 @@ interface SingularConfigure {
     classSelectors: undefined | null | string | string[];
 
     /**
-     * Does not Reload HTML after Re-Routed
+     * Does not Reload document.documentElement after Re-Routed
      * @default false;
      */
     enableKeepHtml: boolean;
@@ -56,10 +56,8 @@ type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElement: HTMLElement) => void;
 
 /**
- * Singular
- * One of Initial Series to Make Identity.
-
- * @author protyliss
+ * @alias singular.enter
+ * @returns singular
  */
 const singular = (function (window, document, undefined) {
     const {href: START_PATH, origin: ORIGIN} = location;
@@ -68,44 +66,33 @@ const singular = (function (window, document, undefined) {
     const READY_CALLBACKS: ChangedElementCallback[] = [];
     const LOAD_CALLBACKS: ChangedElementCallback[] = [];
     const UNLOAD_CALLBACKS: Function[] = [];
-    const CONFIGURE: SingularConfigure = {
+    let CONFIGURE: SingularConfigure = {
         development: false,
-        htmlSelectors: null,
+        elementIds: null,
         classSelectors: null,
         enableKeepHtml: false,
         enableKeepStyles: false,
         enableSearchString: false,
         enableHashString: false
-    }
-    const FRAGMENT_HTML = (() => {
-        const fragment = document.createDocumentFragment();
-        const fragmentHtml = document.createElement('html');
-        fragment.appendChild(fragmentHtml);
+    };
 
-        return fragmentHtml;
-    })();
-
-    let HTML: HTMLElement;
-    let HEAD: HTMLHeadElement;
-    let BODY: HTMLElement;
-    let START_HTML: string;
+    let START_HTML: null | string = document.documentElement.outerHTML;
     let SERIES_CALLBACKS: VoidPromiseCallback[] = [];
     let PARALLEL_CALLBACKS: VoidPromiseCallback[] = [];
     let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
     let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
     let LOADED = false
     let CURRENT_PATH = START_PATH;
-    let FETCH_CONTROLLER: AbortController;
+    let ABORTER: AbortController;
 
     class Page {
+        url!: string;
         title!: string;
         styles!: string[];
         scripts!: string[];
         enterCallbacks: ChangedElementCallback[] = [];
         exitCallbacks: Function[] = [];
-
         classes!: null | Record<string, string>;
-
         html!: string;
     }
 
@@ -125,6 +112,22 @@ const singular = (function (window, document, undefined) {
         [START_PATH]: new Page
     };
 
+    function tag<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNameMap[K] {
+        return document.createElement(tagName);
+    }
+
+    function byId(id: string) {
+        return document.getElementById(id);
+    }
+
+    function fragmentHtml(html: string) {
+        const fragment = document.createDocumentFragment();
+        const fragmentHtml = tag('html');
+        fragment.appendChild(fragmentHtml);
+        fragmentHtml.innerHTML = html;
+        return fragmentHtml;
+    }
+
     /**
      * @alias singular.enter
      * @param callback
@@ -137,29 +140,25 @@ const singular = (function (window, document, undefined) {
      * Set Configure
      * @param configure
      */
-    singular.configure = function <T extends Partial<SingularConfigure>>(configure: T) {
-        if (configure.htmlSelectors) {
-            if (typeof configure.htmlSelectors === 'string') {
-                configure.htmlSelectors = [configure.htmlSelectors];
+    singular.configure = function (configure: Partial<SingularConfigure>) {
+        const {elementIds, classSelectors} = configure;
+        if (elementIds) {
+            if (typeof elementIds === 'string') {
+                configure.elementIds = [elementIds];
             }
 
-            if (configure.htmlSelectors.indexOf('body') > -1) {
-                configure.htmlSelectors = null;
-            }
-        }
-
-        if (configure.classSelectors) {
-            if (typeof configure.classSelectors === 'string') {
-                configure.classSelectors = [configure.classSelectors];
+            if (elementIds.indexOf('body') > -1) {
+                configure.elementIds = null;
             }
         }
 
-        const keys = Object.keys(configure) as Array<keyof T>;
-        let current = keys.length;
-        while (current-- > 0) {
-            const key = keys[current];
-            (CONFIGURE as T)[key] = configure[key];
+        if (classSelectors) {
+            if (typeof classSelectors === 'string') {
+                configure.classSelectors = [classSelectors];
+            }
         }
+
+        CONFIGURE = Object.assign(CONFIGURE, configure);
 
         return singular;
     }
@@ -192,7 +191,7 @@ const singular = (function (window, document, undefined) {
      * @param href
      */
     singular.addStyle = function (href: string) {
-        const link = document.createElement('link');
+        const link = tag('link');
 
         return {
             link,
@@ -201,7 +200,7 @@ const singular = (function (window, document, undefined) {
                 link.onload = resolver;
                 link.onerror = resolver;
                 link.rel = 'stylesheet';
-                HEAD.append(link);
+                document.head.append(link);
 
                 link.href = href;
             })
@@ -214,7 +213,7 @@ const singular = (function (window, document, undefined) {
      * @param async
      */
     singular.addScript = function (src: string, async = true) {
-        const script = document.createElement('script');
+        const script = tag('script');
 
         return {
             script,
@@ -223,7 +222,7 @@ const singular = (function (window, document, undefined) {
                 script.onload = resolver;
                 script.onerror = resolver;
                 script.async = async;
-                HEAD.append(script);
+                document.head.append(script);
 
                 script.src = src;
             })
@@ -238,7 +237,7 @@ const singular = (function (window, document, undefined) {
         READY_CALLBACKS[READY_CALLBACKS.length] = callback;
 
         if (LOADED) {
-            callback(BODY);
+            callback(document.body);
         }
 
         return singular;
@@ -252,7 +251,7 @@ const singular = (function (window, document, undefined) {
         LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
 
         if (LOADED) {
-            callback(BODY);
+            callback(document.body);
         }
 
         return singular;
@@ -266,6 +265,7 @@ const singular = (function (window, document, undefined) {
 
     /**
      * Run Everytime in Declared Document after DOMContentLoaded
+     * @alias singular
      * @param callback
      */
     singular.enter = function (callback: ChangedElementCallback) {
@@ -273,7 +273,7 @@ const singular = (function (window, document, undefined) {
         store[store.length] = callback;
 
         if (LOADED) {
-            callback(BODY);
+            callback(document.body);
         }
 
         return singular;
@@ -284,37 +284,35 @@ const singular = (function (window, document, undefined) {
      * @param callback
      */
     singular.exit = function (callback: Function) {
-        const store = PAGES[CURRENT_PATH].exitCallbacks;
-        store[store.length] = callback;
+        const {exitCallbacks} = PAGES[CURRENT_PATH];
+        exitCallbacks[exitCallbacks.length] = callback;
 
         return singular;
     };
 
     /**
      * Move to Other Document
-     * @param href
-     * @param htmlSelectors
+     * @param requestUrl
+     * @param elementIds
      */
-    singular.route = function (href: string, htmlSelectors?: string[]) {
+    singular.route = function (requestUrl: string, elementIds?: string[]) {
         try {
-            route(href, htmlSelectors);
+            route(requestUrl, elementIds);
         } catch (reason) {
             console.warn(reason);
 
             if (!CONFIGURE.development) {
-                location.replace(href);
+                location.replace(requestUrl);
             }
-
             return null;
         }
-        history.pushState(new State(href), href, href);
     }
 
     /**
      * Signal for DOM Changed by any codes
      * @param target
      */
-    singular.changed = function (target: HTMLElement = BODY) {
+    singular.changed = function (target: HTMLElement = document.body) {
         const end = LOAD_CALLBACKS.length;
         let current = -1;
 
@@ -325,36 +323,34 @@ const singular = (function (window, document, undefined) {
         return singular;
     }
 
-    function route(this: any, href: string, htmlSelectors?: string[]) {
-        const styleElements = getStyleElement(HTML);
-        const scriptElements = getScriptElement(HTML);
+    function route(this: any, requestUrl: string, elementIds?: string[]) {
 
-        const styles = [];
-        const scripts = [];
+        const {entries: styleEntries, urls: styleUrls} = getStyles(document.documentElement);
+        const {entries: scriptEntries, urls: scriptUrls} = getScripts(document.documentElement);
 
-        let current = styleElements.length;
-        while (current-- > 0) {
-            const style = styleElements[current];
-            const href = getAbsoluteUrl(style, 'href');
-            styles[styles.length] = href;
-            RENDERED_STYLES[href] = style;
+        let end = styleEntries.length
+        let current = -1;
+        while (++current > end) {
+            const [node, url] = styleEntries[current];
+            RENDERED_STYLES[url] = node;
         }
 
-        current = scriptElements.length;
-        while (current-- > 0) {
-            const script = scriptElements[current];
-            const src = getAbsoluteUrl(script, 'src');
-            scripts[scripts.length] = src;
-            RENDERED_SCRIPTS[script.src] = script;
+        end = scriptEntries.length
+        current = -1;
+        while (++current < end) {
+            const [node, url] = scriptEntries[current];
+            RENDERED_SCRIPTS[url] = node;
+
+            document.head.append(node);
         }
 
-        const startPage = PAGES[CURRENT_PATH];
-        startPage.title = document.title;
-        startPage.styles = styles;
-        startPage.scripts = scripts;
-        startPage.html = START_HTML;
-
-        START_HTML = null as any;
+        const page = PAGES[getHref(START_PATH)];
+        page.url = START_PATH;
+        page.title = document.title;
+        page.styles = styleUrls;
+        page.scripts = scriptUrls;
+        page.html = START_HTML as string;
+        START_HTML = null;
 
         const {links} = document;
         current = links.length;
@@ -369,7 +365,7 @@ const singular = (function (window, document, undefined) {
         }
 
         // @ts-ignore
-        return (route = function (href, htmlSelectors?) {
+        return (route = function (requestUrl, elementIds?) {
             // console.debug(`[singular] ${href}`);
 
             if (LOADED) {
@@ -384,204 +380,199 @@ const singular = (function (window, document, undefined) {
                 } catch (reason) {
                     console.warn(reason);
                 }
-            } else if (FETCH_CONTROLLER) {
-                FETCH_CONTROLLER.abort();
-            }
-
-            if (!htmlSelectors) {
-                htmlSelectors = CONFIGURE.htmlSelectors;
+            } else if (ABORTER) {
+                ABORTER.abort();
             }
 
             window.scrollTo(0, 0);
-            document.title = href.substring(href.indexOf(':') + 3);
+            // document.title = requestUrl.substring(requestUrl.indexOf(':') + 3);
 
             LOADED = false;
-            CURRENT_PATH = getHref(href);
+            CURRENT_PATH = getHref(requestUrl);
 
-            const cache = PAGES[CURRENT_PATH];
+            const page = PAGES[CURRENT_PATH];
 
-            if (cache) {
+            if (page) {
                 if (CONFIGURE.enableKeepHtml) {
-                    render(cache);
+                    render(page);
+                    pushState(page.url)
                 } else {
-                    request(href)
-                        .then(html => {
-                            cache.html = html;
-                            render(cache);
-                        })
+                    request(requestUrl)
+                        .then(([responseUrl, html]) => {
+                            page.html = html;
+                            render(page);
+                        });
                 }
             } else {
-                request(href)
-                    .then(html => {
-                        parse(href, html, htmlSelectors);
+                request(requestUrl)
+                    .then(([responseUrl, html]) => {
+                        parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds);
                     });
             }
         }).apply(this, arguments as any);
 
         function request(href: string) {
-            FETCH_CONTROLLER = new AbortController();
+            ABORTER = new AbortController();
 
             return fetch(href, {
-                signal: FETCH_CONTROLLER.signal
+                signal: ABORTER.signal
             })
                 .then(responseText)
-                .catch(catchError) as Promise<string>;
+                .catch(catchError) as Promise<[string, string]>;
         }
 
         function responseText(response: Response) {
-            return response.text();
+            const {url} = response;
+            pushState(url);
+            return Promise.all([
+                Promise.resolve(url),
+                response.text()
+            ]);
         }
 
         function catchError(reason: Error) {
             console.warn(reason);
-            if (!(reason instanceof DOMException)) {
-                console.warn(reason)
-            }
+        }
+
+        function pushState(url: string) {
+            history.pushState(new State(url), url, url);
         }
     }
 
-    function parse(href: string, rawHtml: string, htmlSelectors?: string[]) {
-        const page = getPage(rawHtml, href, htmlSelectors);
-
-        PAGES[CURRENT_PATH] = page;
-
-        render(page);
-    }
-
-    function getHref(href: string) {
-        if (!CONFIGURE.enableHashString) {
-            const index = href.indexOf('#');
-            if (index > -1) {
-                href = href.substring(0, index);
-            }
-        }
-
-        if (!CONFIGURE.enableSearchString) {
-            const searchIndex = href.indexOf('?');
-            const hashIndex = href.indexOf('#');
-            if (searchIndex > -1) {
-                href = (
-                    href.substring(0, searchIndex)
-                    + (
-                        hashIndex > -1 ?
-                            href.substring(hashIndex) :
-                            ''
-                    )
-                );
-            }
-        }
-        return href;
-    }
-
-    function getPage(rawHtml: string, href: string, htmlSelectors?: string[]) {
-        FRAGMENT_HTML.innerHTML = rawHtml;
-
-        const title = (FRAGMENT_HTML.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || href;
-
-
-        let current: number;
-
+    function parse(requestUrl: string, responseUrl: string, rawHtml: string, elementIds?: string[]) {
+        const fragment = fragmentHtml(rawHtml)
+        const title = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
         const {classSelectors} = CONFIGURE;
 
+        let current: number;
         let classMap: null | Record<string, string> = null;
+
         if (classSelectors) {
             classMap = {};
             current = classSelectors.length
             while (current-- > 0) {
                 const selector = classSelectors[current];
-                classMap[selector] = (FRAGMENT_HTML.getElementsByTagName(selector)[0] || {}).className || '';
+                classMap[selector] = (fragment.getElementsByTagName(selector)[0] || {}).className || '';
             }
         }
 
-        const styleElements = getStyleElement(FRAGMENT_HTML);
-        const scriptElements = getScriptElement(FRAGMENT_HTML);
-        const styles = getStyleHref(styleElements);
-        const scripts = getScriptSrc(scriptElements);
+        const {urls: styleUrls} = getStyles(fragment);
+        const {entries: scriptEntries, urls: scriptUrls} = getScripts(fragment);
 
-        current = scriptElements.length;
+        current = scriptEntries.length;
         while (current-- > 0) {
-            const script = scriptElements[current];
-            if (script?.parentNode) {
-                script.parentNode.removeChild(script);
+            const [node] = scriptEntries[current];
+            if (node?.parentNode) {
+                node.parentNode.removeChild(node);
             }
         }
 
         let html: string;
-        if (htmlSelectors) {
+        if (elementIds) {
             const targetHTML = [];
-            let current = htmlSelectors.length;
+            let current = elementIds.length;
             while (current-- > 0) {
-                const target = FRAGMENT_HTML.querySelector('#' + htmlSelectors[current]);
+                const target = fragment.querySelector('#' + elementIds[current]);
                 if (target) {
                     targetHTML[targetHTML.length] = target.outerHTML;
                 }
             }
-
             html = targetHTML.join('');
         } else {
-            html = FRAGMENT_HTML.outerHTML;
+            html = fragment.outerHTML
         }
 
         const page = new Page;
-
+        page.url = responseUrl;
         page.title = title;
-        page.title = title
-        page.styles = styles
-        page.scripts = scripts
+        page.styles = styleUrls;
+        page.scripts = scriptUrls;
         page.classes = classMap
         page.html = html
 
-        return page;
+        const url = new URL(CURRENT_PATH);
+        if (url.pathname.endsWith('/')) {
+            url.pathname = url.pathname.substring(0, url.pathname.length - 1);
+        }
+        PAGES['' + url] = page;
+        render(page);
+    }
+
+    function getHref(href: string) {
+        const url = new URL(href);
+
+        if (!CONFIGURE.enableHashString) {
+            url.hash = '';
+        }
+
+        if (!CONFIGURE.enableSearchString) {
+            url.search = '';
+        }
+
+        let {pathname} = url;
+        if (pathname.endsWith('/')) {
+            url.pathname = pathname.substring(0, pathname.length - 1);
+        }
+
+        return '' + url;
     }
 
     function render(page: Page) {
-        const {title, styles, scripts, classes, html} = page;
+        const {url, title, styles, scripts, classes, html} = page;
+        const {elementIds, classSelectors} = CONFIGURE;
 
-        if (title) {
-            document.title = title;
-        }
-
-        const {htmlSelectors, classSelectors} = CONFIGURE;
+        document.title = title || url.substring(url.indexOf('://') + 3);
 
         if (classSelectors && classes) {
             let current = classSelectors.length;
             while (current-- > 0) {
                 const selector = classSelectors[current];
-                const target = HTML.querySelector(selector);
+                const target = document.documentElement.querySelector(selector);
                 if (target) {
                     target.className = classes[selector];
                 }
             }
         }
 
-        FRAGMENT_HTML.innerHTML = html;
-
-        if (htmlSelectors) {
-            let current = htmlSelectors.length;
+        const fragment = fragmentHtml(html);
+        let changeAll = false;
+        if (elementIds) {
+            const replaceMap: [HTMLElement, HTMLElement][] = [];
+            let current = elementIds.length;
             while (current-- > 0) {
-                const selector = htmlSelectors[current];
-                const from = FRAGMENT_HTML.querySelector('#' + selector);
-                const to = BODY.querySelector('#' + selector);
+                const selector = elementIds[current];
+                const from = fragment.querySelector('#' + selector) as HTMLElement;
+                const to = byId(selector) as HTMLElement;
 
-                if (from && to) {
-                    const parent = to.parentNode as HTMLElement;
-                    parent.replaceChild(from, to);
+                if (!from || !to) {
+                    changeAll = true;
+                    break;
+                }
+
+                replaceMap[replaceMap.length] = [from, to];
+            }
+
+            if (!changeAll) {
+                current = replaceMap.length;
+                while (current-- > 0) {
+                    const [from, to] = replaceMap[current];
+                    (to.parentNode as HTMLElement).replaceChild(from, to);
                 }
             }
         } else {
-            BODY.innerHTML = '';
-            BODY.append(...(
-                FRAGMENT_HTML.getElementsByTagName('BODY')[0]
-                || FRAGMENT_HTML).children
-            );
+            changeAll = true;
         }
 
-        FRAGMENT_HTML.innerHTML = '';
+        if (changeAll) {
+            document.body.innerHTML = '';
+            document.body.append(...(fragment.getElementsByTagName('BODY')[0] || fragment).children);
+        }
 
+        fragment.innerHTML = '';
 
         const {addScript, addStyle} = singular;
         const elements = [];
-        const imports = [Promise.resolve()];
+        const importPromises = [Promise.resolve()];
         const removeStyles: HTMLLinkElement[] = [];
         let end: number;
         let current: number;
@@ -611,7 +602,7 @@ const singular = (function (window, document, undefined) {
             }
             const {link, promise} = addStyle(href);
             RENDERED_STYLES[href] = link;
-            imports[imports.length] = promise;
+            importPromises[importPromises.length] = promise;
             elements[elements.length] = link;
         }
 
@@ -620,78 +611,65 @@ const singular = (function (window, document, undefined) {
         current = -1;
         while (++current < end) {
             const src = scripts[current];
-            if (RENDERED_SCRIPTS[src]) {
+            if (RENDERED_SCRIPTS[src]?.parentNode) {
+                // console.log(RENDERED_SCRIPTS[src], RENDERED_SCRIPTS[src].parentNode);
                 continue;
             }
             const {script, promise} = addScript(src);
             RENDERED_SCRIPTS[src] = script;
-            imports[imports.length] = promise;
+            importPromises[importPromises.length] = promise;
             elements[elements.length] = script;
         }
 
         if (elements.length) {
-            HEAD.append(...elements);
+            document.head.append(...elements);
         }
 
-        Promise.all(imports)
+        Promise.all(importPromises)
             .then(() => {
                 let current = removeStyles.length;
                 while (current-- > 0) {
                     const link = removeStyles[current];
-                    link!.parentNode!.removeChild(link);
+                    if (link && link.parentNode) {
+                        link.parentNode.removeChild(link);
+                    }
                 }
                 onLoad();
             })
     }
 
-    function getStyleElement(container: HTMLElement): Children<HTMLLinkElement> {
-        const result = [];
-        const styles = FROM(container.querySelectorAll('link[rel=stylesheet]')) as Children<HTMLLinkElement>;
-        const end = styles.length;
+    function getResources<T extends HTMLElement>(parentElement: HTMLElement, selector: string, attributeName: string) {
+        const entries: Array<[T, string]> = [];
+        const urls: string[] = [];
+        const nodes = FROM(parentElement.querySelectorAll(selector)) as Children<T>;
+        const end = nodes.length;
         let current = -1;
         while (++current < end) {
-            const link = styles[current];
-            if (link.getAttribute('href') && link.href.startsWith(ORIGIN)) {
-                result[result.length] = link;
+            const node = nodes[current];
+
+            if (!node.getAttribute(attributeName) || (node as any)[attributeName].startsWith(ORIGIN)) {
+                continue;
             }
+
+            const value = getFixedUrl(node, attributeName)
+
+            entries[entries.length] = [node, value];
+            urls[urls.length] = value;
+
         }
-        return result;
+        return {entries, urls};
     }
 
-    function getStyleHref(styles: HTMLLinkElement[]) {
-        const result = [];
-        let current = styles.length;
-        while (current-- > 0) {
-            result[result.length] = getAbsoluteUrl(styles[current], 'href');
-        }
-        return result;
+    function getStyles(parentElement: HTMLElement) {
+        return getResources<HTMLLinkElement>(parentElement, 'link[rel=stylesheet]', 'href');
     }
 
-    function getScriptElement(container: HTMLElement) {
-        const result = [];
-        const scripts = container.querySelectorAll('script[src]') as any as HTMLScriptElement[];
-        const end = scripts.length;
-        let current = -1;
-        while (++current < end) {
-            const script = scripts[current];
-            if (script.getAttribute('src') && script.src.startsWith(ORIGIN)) {
-                result[result.length] = script;
-            }
-        }
-        return result;
+    function getScripts(parentElement: HTMLElement) {
+        return getResources<HTMLScriptElement>(parentElement, 'script[src]', 'src');
     }
 
-    function getScriptSrc(scripts: HTMLScriptElement[]) {
-        const result = [];
-        let current = scripts.length;
-        while (current-- > 0) {
-            result[result.length] = getAbsoluteUrl(scripts[current], 'src');
-        }
-        return result;
-    }
-
-    function getAbsoluteUrl(node: HTMLElement, attribute: string) {
-        return '' + (new URL(node.getAttribute(attribute) as string, CURRENT_PATH));
+    function getFixedUrl(node: HTMLElement, attribute: string) {
+        return '' + (new URL(node.getAttribute(attribute) as string, location.href));
     }
 
     function onLoad() {
@@ -722,7 +700,7 @@ const singular = (function (window, document, undefined) {
 
     function onLoading() {
         // console.debug('[singular] after load');
-        HTML.style.visibility = 'inherit';
+        document.documentElement.style.visibility = 'inherit';
         try {
             onLoaded();
         } catch (reason) {
@@ -737,21 +715,19 @@ const singular = (function (window, document, undefined) {
         }
     }
 
-    function onLoaded(changedElement = BODY) {
+    function onLoaded(changedElement = document.body) {
         // console.debug('[singular] Loaded');
         LOADED = true;
 
-        const store = PAGES[CURRENT_PATH];
-
+        const page = PAGES[CURRENT_PATH];
         const callbacks = [
             ...READY_CALLBACKS.splice(0, READY_CALLBACKS.length),
             ...LOAD_CALLBACKS,
-            ...store.enterCallbacks
+            ...page.enterCallbacks
         ];
 
         const end = callbacks.length;
         let current = -1;
-
         while (++current < end) {
             callbacks[current](changedElement);
         }
@@ -761,23 +737,23 @@ const singular = (function (window, document, undefined) {
         'click',
         function onClick(event) {
             let node = event.target as SingularAnchor;
-            const {tagName} = node;
 
-            if (tagName === 'BODY') {
-                return false
-            }
+            switch (node.tagName) {
+                case 'BODY':
+                    return false;
+                case 'A':
+                    break;
+                default:
+                    if (node._singularAnchor === false) {
+                        return true;
+                    }
 
-            if (tagName !== 'A') {
-                if (node?._singularAnchor === false) {
-                    return true;
-                }
-
-                const anchor = node.closest('a') as SingularAnchor;
-                if (!anchor || !anchor.href) {
-                    node._singularAnchor = false;
-                    return true;
-                }
-                node = anchor;
+                    const anchor = node.closest('a') as SingularAnchor;
+                    if (!anchor || !anchor.href) {
+                        node._singularAnchor = false;
+                        return true;
+                    }
+                    node = anchor;
             }
 
             const {href} = node;
@@ -793,12 +769,11 @@ const singular = (function (window, document, undefined) {
 
             node._singularAnchor = node;
 
-            const inlineOutlet = node?.dataset?.outlet;
-
-            singular.route(node.href, inlineOutlet ? inlineOutlet.split(',') : undefined);
-
             event.stopPropagation();
             event.preventDefault();
+
+            const inlineOutlet = node.dataset?.outlet;
+            singular.route(href, inlineOutlet ? inlineOutlet.split(',') : undefined);
 
             return false;
         }
@@ -820,20 +795,15 @@ const singular = (function (window, document, undefined) {
     addEventListener(
         'DOMContentLoaded',
         function onDOMContentLoaded() {
-            HTML = document.documentElement;
-            HEAD = document.head;
-            BODY = document.body;
-
-            START_HTML = HTML.outerHTML;
-
             CURRENT_PATH = getHref(START_PATH);
 
-            if (CURRENT_PATH !== START_PATH) {
+            if (START_PATH !== CURRENT_PATH) {
                 PAGES[CURRENT_PATH] = PAGES[START_PATH];
                 delete PAGES[START_PATH];
             }
 
-            HTML.style.visibility = 'hidden';
+            document.documentElement.style.visibility = 'hidden';
+
             onLoad();
         }
     );

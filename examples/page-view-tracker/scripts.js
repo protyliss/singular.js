@@ -14,7 +14,7 @@ function debug(message) {
 
 singular
 	.configure({
-		htmlSelectors : ['heading'],
+		elementIds : ['heading'],
 		enableKeepHtml: true
 	})
 	.ready(() => {

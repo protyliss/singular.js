@@ -69,7 +69,7 @@ singular(callbackFunction);
 
 [^spa]: Single Page Application
 
-[^optimize-rendering]: `htmlSelectors` option is required.
+[^optimize-rendering]: `elementIds` option is required.
 
 [^optimize-html]: `enableKeepHtml` option is required.
 

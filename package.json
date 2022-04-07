@@ -1,7 +1,7 @@
 {
   "name": "singular.js",
-  "version": "2.10.0",
-  "description": "MPA[^mpa] transforms to SPA[^spa]",
+  "version": "2.11.0",
+  "description": "MPA transforms to SPA",
   "main": "dist/singular.js",
   "type": "module",
   "scripts": {
