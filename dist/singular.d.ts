@@ -52,32 +52,13 @@ declare type Child<T = HTMLElement> = T & {
 };
 declare type Children<T> = Array<Child<T>>;
 declare type ChangedElementCallback = (changedElement: HTMLElement) => void;
-/**
- * @alias singular.enter
- * @returns singular
- */
 declare const singular: {
-    (callback: VoidPromiseCallback): any;
+    new (): {};
     /**
      * Set Configure
      * @param configure
      */
     configure(configure: Partial<SingularConfigure>): any;
-    /**
-     * Set Series Callback for Bootstrap
-     * @description
-     *   Callbacks Call as Single Thread
-     *   If Previous Callback to failed, Does not Move to Next Callback.
-     * @param callback
-     */
-    series(callback: VoidPromiseCallback): any;
-    /**
-     * Set Parallel Callback for Bootstrap
-     * @description
-     *   Callbacks Call as Multiple Thread
-     * @param callback
-     */
-    parallel(callback: VoidPromiseCallback): any;
     /**
      * Add External Stylesheet to <HEAD> Using <LINK>
      * @param href
@@ -96,6 +77,21 @@ declare const singular: {
         promise: Promise<void>;
     };
     /**
+     * Set Parallel Callback for Bootstrap
+     * @description
+     *   Callbacks Call as Multiple Thread
+     * @param callback
+     */
+    parallel(callback: VoidPromiseCallback): any;
+    /**
+     * Set Series Callback for Bootstrap
+     * @description
+     *   Callbacks Call as Single Thread
+     *   If Previous Callback to failed, Does not Move to Next Callback.
+     * @param callback
+     */
+    series(callback: VoidPromiseCallback): any;
+    /**
      * Run Once in Declared Document after DOMContentLoaded
      * @param callback
      */
@@ -105,7 +101,6 @@ declare const singular: {
      * @param callback
      */
     load(callback: ChangedElementCallback): any;
-    unload(callback: Function): any;
     /**
      * Run Everytime in Declared Document after DOMContentLoaded
      * @alias singular
@@ -117,6 +112,7 @@ declare const singular: {
      * @param callback
      */
     exit(callback: Function): any;
+    unload(callback: Function): any;
     /**
      * Move to Other Document
      * @param requestUrl

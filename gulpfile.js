@@ -64,7 +64,7 @@ task('js-bundle', done => {
 		// 		}
 		// 	)
 		// )
-		.pipe(uglify())
+		// .pipe(uglify())
 		.pipe(sourceMap.write('./'))
 		.pipe(dest('./dist'));
 })

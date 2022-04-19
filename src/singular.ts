@@ -55,11 +55,8 @@ type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElement: HTMLElement) => void;
 
-/**
- * @alias singular.enter
- * @returns singular
- */
-const singular = (function (window, document, undefined) {
+
+const singular = (function singularInit(window, document, undefined) {
     const {href: START_PATH, origin: ORIGIN} = location;
     const {from: FROM} = Array;
 
@@ -112,6 +109,270 @@ const singular = (function (window, document, undefined) {
         [START_PATH]: new Page
     };
 
+    addEventListener(
+        'click',
+        function singularOnClick(event) {
+            let node = event.target as SingularAnchor;
+
+            switch (node.tagName) {
+                case 'BODY':
+                    return false;
+                case 'A':
+                    break;
+                default:
+                    if (node._singularAnchor === false) {
+                        return true;
+                    }
+
+                    const anchor = node.closest('a') as SingularAnchor;
+                    if (!anchor || !anchor.href) {
+                        node._singularAnchor = false;
+                        return true;
+                    }
+                    node = anchor;
+            }
+
+            const {href} = node;
+            const rawHref = node.getAttribute('href');
+
+            if (!href.startsWith(ORIGIN)
+                || node.download
+                || (rawHref && rawHref.startsWith('#'))
+            ) {
+                node._singularAnchor = false;
+                return true;
+            }
+
+            node._singularAnchor = node;
+
+            event.stopPropagation();
+            event.preventDefault();
+
+            const inlineOutlet = node.dataset?.outlet;
+            singular.route(href, inlineOutlet ? inlineOutlet.split(',') : undefined);
+
+            return false;
+        }
+    );
+
+    addEventListener(
+        'popstate',
+        function singularOnPopstate(event) {
+            const {state} = event;
+
+            if (state && state.singular) {
+                route(state.singular.href);
+            }
+
+            return true;
+        }
+    );
+
+    addEventListener(
+        'DOMContentLoaded',
+        function singularOnDOMContentLoaded() {
+            CURRENT_PATH = getHref(START_PATH);
+
+            if (START_PATH !== CURRENT_PATH) {
+                PAGES[CURRENT_PATH] = PAGES[START_PATH];
+                delete PAGES[START_PATH];
+            }
+
+            document.documentElement.style.visibility = 'hidden';
+
+            onLoad();
+        }
+    );
+
+    return class Singular {
+        /**
+         * Set Configure
+         * @param configure
+         */
+        static configure(configure: Partial<SingularConfigure>) {
+            const {elementIds, classSelectors} = configure;
+            if (elementIds) {
+                if (typeof elementIds === 'string') {
+                    configure.elementIds = [elementIds];
+                }
+
+                if (elementIds.indexOf('body') > -1) {
+                    configure.elementIds = null;
+                }
+            }
+
+            if (classSelectors) {
+                if (typeof classSelectors === 'string') {
+                    configure.classSelectors = [classSelectors];
+                }
+            }
+
+            CONFIGURE = Object.assign(CONFIGURE, configure);
+
+            return this;
+        }
+
+        /**
+         * Add External Stylesheet to <HEAD> Using <LINK>
+         * @param href
+         */
+        static addStyle(href: string) {
+            const link = tag('link');
+
+            return {
+                link,
+                promise: new Promise<void>((resolve) => {
+                    const resolver = () => resolve();
+                    link.onload = resolver;
+                    link.onerror = resolver;
+                    link.rel = 'stylesheet';
+                    document.head.append(link);
+
+                    link.href = href;
+                })
+            }
+        };
+
+        /**
+         *  Add External Stylesheet to <HEAD> Using <SCRIPT>
+         * @param src
+         * @param async
+         */
+        static addScript(src: string, async = true) {
+            const script = tag('script');
+
+            return {
+                script,
+                promise: new Promise<void>((resolve) => {
+                    const resolver = () => resolve();
+                    script.onload = resolver;
+                    script.onerror = resolver;
+                    script.async = async;
+                    document.head.append(script);
+
+                    script.src = src;
+                })
+            }
+        };
+
+        /**
+         * Set Parallel Callback for Bootstrap
+         * @description
+         *   Callbacks Call as Multiple Thread
+         * @param callback
+         */
+        static parallel(callback: VoidPromiseCallback) {
+            PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
+            return this;
+        }
+
+        /**
+         * Set Series Callback for Bootstrap
+         * @description
+         *   Callbacks Call as Single Thread
+         *   If Previous Callback to failed, Does not Move to Next Callback.
+         * @param callback
+         */
+        static series(callback: VoidPromiseCallback) {
+            SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
+            return this;
+        }
+
+        /**
+         * Run Once in Declared Document after DOMContentLoaded
+         * @param callback
+         */
+        static ready(callback: ChangedElementCallback) {
+            READY_CALLBACKS[READY_CALLBACKS.length] = callback;
+
+            if (LOADED) {
+                callback(document.body);
+            }
+
+            return this;
+        }
+
+        /**
+         * Run Everytime in Every Document after DOMContentLoaded
+         * @param callback
+         */
+        static load(callback: ChangedElementCallback) {
+            LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
+
+            if (LOADED) {
+                callback(document.body);
+            }
+
+            return this;
+        }
+
+        /**
+         * Run Everytime in Declared Document after DOMContentLoaded
+         * @alias singular
+         * @param callback
+         */
+        static enter(callback: ChangedElementCallback) {
+            const store = PAGES[CURRENT_PATH].enterCallbacks;
+            store[store.length] = callback;
+
+            if (LOADED) {
+                callback(document.body);
+            }
+
+            return this;
+        }
+
+        /**
+         * Run Everytime in Declared Document after beforeunload
+         * @param callback
+         */
+        static exit(callback: Function) {
+            const {exitCallbacks} = PAGES[CURRENT_PATH];
+            exitCallbacks[exitCallbacks.length] = callback;
+
+            return this;
+        };
+
+        static unload(callback: Function) {
+            UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
+
+            return this;
+        }
+
+        /**
+         * Move to Other Document
+         * @param requestUrl
+         * @param elementIds
+         */
+        static route(requestUrl: string, elementIds?: string[]) {
+            try {
+                route(requestUrl, elementIds);
+            } catch (reason) {
+                console.warn(reason);
+
+                if (!CONFIGURE.development) {
+                    location.replace(requestUrl);
+                }
+                return null;
+            }
+        }
+
+        /**
+         * Signal for DOM Changed by any codes
+         * @param target
+         */
+        static changed(target: HTMLElement = document.body) {
+            const end = LOAD_CALLBACKS.length;
+            let current = -1;
+
+            while (++current < end) {
+                LOAD_CALLBACKS[current](target);
+            }
+
+            return this;
+        }
+    };
+
     function tag<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNameMap[K] {
         return document.createElement(tagName);
     }
@@ -128,200 +389,6 @@ const singular = (function (window, document, undefined) {
         return fragmentHtml;
     }
 
-    /**
-     * @alias singular.enter
-     * @param callback
-     */
-    function singular(callback: VoidPromiseCallback) {
-        return singular.enter(callback)
-    }
-
-    /**
-     * Set Configure
-     * @param configure
-     */
-    singular.configure = function (configure: Partial<SingularConfigure>) {
-        const {elementIds, classSelectors} = configure;
-        if (elementIds) {
-            if (typeof elementIds === 'string') {
-                configure.elementIds = [elementIds];
-            }
-
-            if (elementIds.indexOf('body') > -1) {
-                configure.elementIds = null;
-            }
-        }
-
-        if (classSelectors) {
-            if (typeof classSelectors === 'string') {
-                configure.classSelectors = [classSelectors];
-            }
-        }
-
-        CONFIGURE = Object.assign(CONFIGURE, configure);
-
-        return singular;
-    }
-
-    /**
-     * Set Series Callback for Bootstrap
-     * @description
-     *   Callbacks Call as Single Thread
-     *   If Previous Callback to failed, Does not Move to Next Callback.
-     * @param callback
-     */
-    singular.series = function (callback: VoidPromiseCallback) {
-        SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
-        return singular;
-    }
-
-    /**
-     * Set Parallel Callback for Bootstrap
-     * @description
-     *   Callbacks Call as Multiple Thread
-     * @param callback
-     */
-    singular.parallel = function (callback: VoidPromiseCallback) {
-        PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
-        return singular;
-    }
-
-    /**
-     * Add External Stylesheet to <HEAD> Using <LINK>
-     * @param href
-     */
-    singular.addStyle = function (href: string) {
-        const link = tag('link');
-
-        return {
-            link,
-            promise: new Promise<void>((resolve) => {
-                const resolver = () => resolve();
-                link.onload = resolver;
-                link.onerror = resolver;
-                link.rel = 'stylesheet';
-                document.head.append(link);
-
-                link.href = href;
-            })
-        }
-    };
-
-    /**
-     *  Add External Stylesheet to <HEAD> Using <SCRIPT>
-     * @param src
-     * @param async
-     */
-    singular.addScript = function (src: string, async = true) {
-        const script = tag('script');
-
-        return {
-            script,
-            promise: new Promise<void>((resolve) => {
-                const resolver = () => resolve();
-                script.onload = resolver;
-                script.onerror = resolver;
-                script.async = async;
-                document.head.append(script);
-
-                script.src = src;
-            })
-        }
-    };
-
-    /**
-     * Run Once in Declared Document after DOMContentLoaded
-     * @param callback
-     */
-    singular.ready = function (callback: ChangedElementCallback) {
-        READY_CALLBACKS[READY_CALLBACKS.length] = callback;
-
-        if (LOADED) {
-            callback(document.body);
-        }
-
-        return singular;
-    }
-
-    /**
-     * Run Everytime in Every Document after DOMContentLoaded
-     * @param callback
-     */
-    singular.load = function (callback: ChangedElementCallback) {
-        LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
-
-        if (LOADED) {
-            callback(document.body);
-        }
-
-        return singular;
-    }
-
-    singular.unload = function (callback: Function) {
-        UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
-
-        return singular;
-    }
-
-    /**
-     * Run Everytime in Declared Document after DOMContentLoaded
-     * @alias singular
-     * @param callback
-     */
-    singular.enter = function (callback: ChangedElementCallback) {
-        const store = PAGES[CURRENT_PATH].enterCallbacks;
-        store[store.length] = callback;
-
-        if (LOADED) {
-            callback(document.body);
-        }
-
-        return singular;
-    }
-
-    /**
-     * Run Everytime in Declared Document after beforeunload
-     * @param callback
-     */
-    singular.exit = function (callback: Function) {
-        const {exitCallbacks} = PAGES[CURRENT_PATH];
-        exitCallbacks[exitCallbacks.length] = callback;
-
-        return singular;
-    };
-
-    /**
-     * Move to Other Document
-     * @param requestUrl
-     * @param elementIds
-     */
-    singular.route = function (requestUrl: string, elementIds?: string[]) {
-        try {
-            route(requestUrl, elementIds);
-        } catch (reason) {
-            console.warn(reason);
-
-            if (!CONFIGURE.development) {
-                location.replace(requestUrl);
-            }
-            return null;
-        }
-    }
-
-    /**
-     * Signal for DOM Changed by any codes
-     * @param target
-     */
-    singular.changed = function (target: HTMLElement = document.body) {
-        const end = LOAD_CALLBACKS.length;
-        let current = -1;
-
-        while (++current < end) {
-            LOAD_CALLBACKS[current](target);
-        }
-
-        return singular;
-    }
 
     function route(this: any, requestUrl: string, elementIds?: string[]) {
 
@@ -365,7 +432,9 @@ const singular = (function (window, document, undefined) {
         }
 
         // @ts-ignore
-        return (route = function (requestUrl, elementIds?) {
+        return (route = routeAfterFirstRouted).apply(this, arguments as any);
+
+        function routeAfterFirstRouted(requestUrl: string, elementIds?: string[]) {
             // console.debug(`[singular] ${href}`);
 
             if (LOADED) {
@@ -393,10 +462,12 @@ const singular = (function (window, document, undefined) {
             const page = PAGES[CURRENT_PATH];
 
             if (page) {
+
                 if (CONFIGURE.enableKeepHtml) {
                     render(page);
                     pushState(page.url)
                 } else {
+                    // noinspection JSUnusedLocalSymbols
                     request(requestUrl)
                         .then(([responseUrl, html]) => {
                             page.html = html;
@@ -406,10 +477,10 @@ const singular = (function (window, document, undefined) {
             } else {
                 request(requestUrl)
                     .then(([responseUrl, html]) => {
-                        parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds);
+                        parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds as string[]);
                     });
             }
-        }).apply(this, arguments as any);
+        }
 
         function request(href: string) {
             ABORTER = new AbortController();
@@ -516,6 +587,11 @@ const singular = (function (window, document, undefined) {
 
         return '' + url;
     }
+
+    function getScriptUrl(href: string){
+
+    }
+
 
     function render(page: Page) {
         const {url, title, styles, scripts, classes, html} = page;
@@ -732,81 +808,4 @@ const singular = (function (window, document, undefined) {
             callbacks[current](changedElement);
         }
     }
-
-    addEventListener(
-        'click',
-        function onClick(event) {
-            let node = event.target as SingularAnchor;
-
-            switch (node.tagName) {
-                case 'BODY':
-                    return false;
-                case 'A':
-                    break;
-                default:
-                    if (node._singularAnchor === false) {
-                        return true;
-                    }
-
-                    const anchor = node.closest('a') as SingularAnchor;
-                    if (!anchor || !anchor.href) {
-                        node._singularAnchor = false;
-                        return true;
-                    }
-                    node = anchor;
-            }
-
-            const {href} = node;
-            const rawHref = node.getAttribute('href');
-
-            if (!href.startsWith(ORIGIN)
-                || node.download
-                || (rawHref && rawHref.startsWith('#'))
-            ) {
-                node._singularAnchor = false;
-                return true;
-            }
-
-            node._singularAnchor = node;
-
-            event.stopPropagation();
-            event.preventDefault();
-
-            const inlineOutlet = node.dataset?.outlet;
-            singular.route(href, inlineOutlet ? inlineOutlet.split(',') : undefined);
-
-            return false;
-        }
-    );
-
-    addEventListener(
-        'popstate',
-        function onPopstate(event) {
-            const {state} = event;
-
-            if (state && state.singular) {
-                route(state.singular.href);
-            }
-
-            return true;
-        }
-    );
-
-    addEventListener(
-        'DOMContentLoaded',
-        function onDOMContentLoaded() {
-            CURRENT_PATH = getHref(START_PATH);
-
-            if (START_PATH !== CURRENT_PATH) {
-                PAGES[CURRENT_PATH] = PAGES[START_PATH];
-                delete PAGES[START_PATH];
-            }
-
-            document.documentElement.style.visibility = 'hidden';
-
-            onLoad();
-        }
-    );
-
-    return singular;
 })(window, document);

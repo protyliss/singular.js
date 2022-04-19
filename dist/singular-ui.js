@@ -1,2 +1,75 @@
-"use strict";!function(t){var a=location.origin.length,e=[];function i(){for(var n=e,t=n.length;0<t--;)n[t].classList.remove("_active");e=[]}function l(n){(e[e.length]=n).classList.add("_active")}t.activeLink=function(n){return t.load(function(){!function(n){var t=Array.from(document.querySelectorAll(n)),e=t.length;for(;0<e--;)!function(n){var t=location.href.substring(a),e=n.getElementsByTagName("A"),i=e.length;for(;0<i--;){var o=e[i];if(t===o.href.substring(a)){l(o),o.focus(),o.blur();do{var r=o.closest("ul");if(r){r=r.closest("li");if(r&&(o=r.getElementsByTagName("A")[0])){l(o);continue}}break}while(o)}}}(t[e])}(n)}).unload(i)}}(window.singular);
+"use strict"; /// <reference path="singular.ts" />
+
+(function (singular) {
+  var ORIGIN_LENGTH = location.origin.length;
+  var ACTIVATED_LINKS = [];
+
+  singular.activeLink = function (selector) {
+    return singular.load(function () {
+      activeLinks(selector);
+    }).unload(inactiveLinks);
+  };
+
+  function activeLinks(selector) {
+    var containers = Array.from(document.querySelectorAll(selector));
+    var current = containers.length;
+
+    while (current-- > 0) {
+      activeLink(containers[current]);
+    }
+  }
+
+  function inactiveLinks() {
+    var anchors = ACTIVATED_LINKS;
+    var current = anchors.length;
+
+    while (current-- > 0) {
+      anchors[current].classList.remove('_active');
+    }
+
+    ACTIVATED_LINKS = [];
+  }
+
+  function activeLink(container) {
+    var currentPath = location.href.substring(ORIGIN_LENGTH);
+    var anchors = container.getElementsByTagName('A');
+    var current = anchors.length;
+
+    while (current-- > 0) {
+      var anchor = anchors[current];
+
+      if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
+        continue;
+      }
+
+      activate(anchor);
+      anchor.focus();
+      anchor.blur();
+
+      do {
+        var ul = anchor.closest('ul');
+
+        if (ul) {
+          var li = ul.closest('li');
+
+          if (li) {
+            anchor = li.getElementsByTagName('A')[0];
+
+            if (anchor) {
+              activate(anchor);
+              continue;
+            }
+          }
+        }
+
+        break;
+      } while (anchor);
+    }
+  }
+
+  function activate(anchor) {
+    ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+    anchor.classList.add('_active');
+  }
+})(window['singular']);
 //# sourceMappingURL=singular-ui.js.map
