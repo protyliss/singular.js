@@ -1,75 +1,62 @@
-"use strict"; /// <reference path="singular.ts" />
-
+"use strict";
+/// <reference path="singular.ts" />
 (function (singular) {
-  var ORIGIN_LENGTH = location.origin.length;
-  var ACTIVATED_LINKS = [];
-
-  singular.activeLink = function (selector) {
-    return singular.load(function () {
-      activeLinks(selector);
-    }).unload(inactiveLinks);
-  };
-
-  function activeLinks(selector) {
-    var containers = Array.from(document.querySelectorAll(selector));
-    var current = containers.length;
-
-    while (current-- > 0) {
-      activeLink(containers[current]);
-    }
-  }
-
-  function inactiveLinks() {
-    var anchors = ACTIVATED_LINKS;
-    var current = anchors.length;
-
-    while (current-- > 0) {
-      anchors[current].classList.remove('_active');
-    }
-
-    ACTIVATED_LINKS = [];
-  }
-
-  function activeLink(container) {
-    var currentPath = location.href.substring(ORIGIN_LENGTH);
-    var anchors = container.getElementsByTagName('A');
-    var current = anchors.length;
-
-    while (current-- > 0) {
-      var anchor = anchors[current];
-
-      if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
-        continue;
-      }
-
-      activate(anchor);
-      anchor.focus();
-      anchor.blur();
-
-      do {
-        var ul = anchor.closest('ul');
-
-        if (ul) {
-          var li = ul.closest('li');
-
-          if (li) {
-            anchor = li.getElementsByTagName('A')[0];
-
-            if (anchor) {
-              activate(anchor);
-              continue;
-            }
-          }
+    const ORIGIN_LENGTH = location.origin.length;
+    let ACTIVATED_LINKS = [];
+    singular.activeLink = function (selector) {
+        return singular
+            .load(() => {
+            activeLinks(selector);
+        })
+            .unload(inactiveLinks);
+    };
+    function activeLinks(selector) {
+        const containers = Array.from(document.querySelectorAll(selector));
+        let current = containers.length;
+        while (current-- > 0) {
+            activeLink(containers[current]);
         }
-
-        break;
-      } while (anchor);
     }
-  }
-
-  function activate(anchor) {
-    ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
-    anchor.classList.add('_active');
-  }
+    function inactiveLinks() {
+        const anchors = ACTIVATED_LINKS;
+        let current = anchors.length;
+        while (current-- > 0) {
+            anchors[current].classList.remove('_active');
+        }
+        ACTIVATED_LINKS = [];
+    }
+    function activeLink(container) {
+        const currentPath = location.href.substring(ORIGIN_LENGTH);
+        const anchors = container.getElementsByTagName('A');
+        let current = anchors.length;
+        while (current-- > 0) {
+            let anchor = anchors[current];
+            if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
+                continue;
+            }
+            activate(anchor);
+            anchor.focus();
+            anchor.blur();
+            do {
+                let ul = anchor.closest('ul');
+                if (ul) {
+                    const li = ul.closest('li');
+                    if (li) {
+                        anchor = li.getElementsByTagName('A')[0];
+                        if (anchor) {
+                            activate(anchor);
+                            continue;
+                        }
+                    }
+                }
+                break;
+            } while (anchor);
+        }
+    }
+    function activate(anchor) {
+        ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+        anchor.classList.add('_active');
+    }
 })(window['singular']);
+
 //# sourceMappingURL=singular-ui.js.map

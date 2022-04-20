@@ -44,11 +44,11 @@ task('dts-copy', done => {
 task('js-bundle', done => {
 	return src(JS_FILES)
 		.pipe(sourceMap.init())
-		.pipe(babel({
-			presets: [
-				'@babel/preset-env'
-			]
-		}))
+		// .pipe(babel({
+		// 	presets: [
+		// 		'@babel/preset-env'
+		// 	]
+		// }))
 		// .pipe(
 		// 	rollup(
 		// 		{

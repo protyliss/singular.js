@@ -47,6 +47,12 @@ interface SingularConfigure {
      * @default false
      */
     enableHashString: boolean;
+
+    /**
+     * Disable Change Browser Title after Routed
+     * @default false
+     */
+    disableTitleChange: boolean
 }
 
 type VoidPromiseCallback = (...args: any) => Promise<void>;
@@ -55,14 +61,10 @@ type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElement: HTMLElement) => void;
 
-
 const singular = (function singularInit(window, document, undefined) {
-    const {href: START_PATH, origin: ORIGIN} = location;
+    const {href: START_URL, origin: ORIGIN} = location;
     const {from: FROM} = Array;
 
-    const READY_CALLBACKS: ChangedElementCallback[] = [];
-    const LOAD_CALLBACKS: ChangedElementCallback[] = [];
-    const UNLOAD_CALLBACKS: Function[] = [];
     let CONFIGURE: SingularConfigure = {
         development: false,
         elementIds: null,
@@ -70,16 +72,15 @@ const singular = (function singularInit(window, document, undefined) {
         enableKeepHtml: false,
         enableKeepStyles: false,
         enableSearchString: false,
-        enableHashString: false
+        enableHashString: false,
+        disableTitleChange: false
     };
 
-    let START_HTML: null | string = document.documentElement.outerHTML;
-    let SERIES_CALLBACKS: VoidPromiseCallback[] = [];
-    let PARALLEL_CALLBACKS: VoidPromiseCallback[] = [];
     let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
     let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
     let LOADED = false
-    let CURRENT_PATH = START_PATH;
+    let CURRENT_URL = START_URL;
+    let CURRENT_SCRIPT_URL = START_URL;
     let ABORTER: AbortController;
 
     class Page {
@@ -87,10 +88,19 @@ const singular = (function singularInit(window, document, undefined) {
         title!: string;
         styles!: string[];
         scripts!: string[];
-        enterCallbacks: ChangedElementCallback[] = [];
-        exitCallbacks: Function[] = [];
         classes!: null | Record<string, string>;
         html!: string;
+    }
+
+    class Lifecycle {
+        static seriesCallbacks: VoidPromiseCallback[] = [];
+        static parallelCallbacks: VoidPromiseCallback[] = [];
+        static readyCallbacks: ChangedElementCallback[] = [];
+        static loadCallbacks: ChangedElementCallback[] = [];
+        static unloadCallbacks: Function[] = [];
+
+        enterCallbacks: ChangedElementCallback[] = [];
+        exitCallbacks: Function[] = [];
     }
 
     class State {
@@ -106,7 +116,11 @@ const singular = (function singularInit(window, document, undefined) {
     }
 
     const PAGES: Record<string, Page> = {
-        [START_PATH]: new Page
+        [START_URL]: new Page
+    };
+
+    const LIFECYCLES: Record<string, Lifecycle> = {
+        [START_URL]: new Lifecycle
     };
 
     addEventListener(
@@ -161,7 +175,7 @@ const singular = (function singularInit(window, document, undefined) {
             const {state} = event;
 
             if (state && state.singular) {
-                route(state.singular.href);
+                route(state.singular.href, undefined, false);
             }
 
             return true;
@@ -171,11 +185,19 @@ const singular = (function singularInit(window, document, undefined) {
     addEventListener(
         'DOMContentLoaded',
         function singularOnDOMContentLoaded() {
-            CURRENT_PATH = getHref(START_PATH);
+            PAGES[CURRENT_URL].html = document.documentElement.outerHTML;
 
-            if (START_PATH !== CURRENT_PATH) {
-                PAGES[CURRENT_PATH] = PAGES[START_PATH];
-                delete PAGES[START_PATH];
+            CURRENT_URL = getHref(START_URL);
+            CURRENT_SCRIPT_URL = getScriptUrl(START_URL);
+
+            if (START_URL !== CURRENT_URL) {
+                PAGES[CURRENT_URL] = PAGES[START_URL];
+                delete PAGES[START_URL];
+            }
+
+            if (START_URL !== CURRENT_SCRIPT_URL) {
+                LIFECYCLES[CURRENT_SCRIPT_URL] = LIFECYCLES[START_URL];
+                delete LIFECYCLES[START_URL];
             }
 
             document.documentElement.style.visibility = 'hidden';
@@ -262,7 +284,7 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static parallel(callback: VoidPromiseCallback) {
-            PARALLEL_CALLBACKS[PARALLEL_CALLBACKS.length] = callback;
+            Lifecycle.parallelCallbacks[Lifecycle.parallelCallbacks.length] = callback;
             return this;
         }
 
@@ -274,7 +296,7 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static series(callback: VoidPromiseCallback) {
-            SERIES_CALLBACKS[SERIES_CALLBACKS.length] = callback;
+            Lifecycle.seriesCallbacks[Lifecycle.seriesCallbacks.length] = callback;
             return this;
         }
 
@@ -283,7 +305,7 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static ready(callback: ChangedElementCallback) {
-            READY_CALLBACKS[READY_CALLBACKS.length] = callback;
+            Lifecycle.readyCallbacks[Lifecycle.readyCallbacks.length] = callback;
 
             if (LOADED) {
                 callback(document.body);
@@ -297,7 +319,7 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static load(callback: ChangedElementCallback) {
-            LOAD_CALLBACKS[LOAD_CALLBACKS.length] = callback;
+            Lifecycle.loadCallbacks[Lifecycle.loadCallbacks.length] = callback;
 
             if (LOADED) {
                 callback(document.body);
@@ -312,8 +334,8 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static enter(callback: ChangedElementCallback) {
-            const store = PAGES[CURRENT_PATH].enterCallbacks;
-            store[store.length] = callback;
+            const {enterCallbacks} = LIFECYCLES[CURRENT_SCRIPT_URL];
+            enterCallbacks[enterCallbacks.length] = callback;
 
             if (LOADED) {
                 callback(document.body);
@@ -327,14 +349,14 @@ const singular = (function singularInit(window, document, undefined) {
          * @param callback
          */
         static exit(callback: Function) {
-            const {exitCallbacks} = PAGES[CURRENT_PATH];
+            const {exitCallbacks} = LIFECYCLES[CURRENT_SCRIPT_URL];
             exitCallbacks[exitCallbacks.length] = callback;
 
             return this;
         };
 
         static unload(callback: Function) {
-            UNLOAD_CALLBACKS[UNLOAD_CALLBACKS.length] = callback;
+            Lifecycle.unloadCallbacks[Lifecycle.unloadCallbacks.length] = callback;
 
             return this;
         }
@@ -346,7 +368,7 @@ const singular = (function singularInit(window, document, undefined) {
          */
         static route(requestUrl: string, elementIds?: string[]) {
             try {
-                route(requestUrl, elementIds);
+                route(requestUrl, elementIds)
             } catch (reason) {
                 console.warn(reason);
 
@@ -362,11 +384,11 @@ const singular = (function singularInit(window, document, undefined) {
          * @param target
          */
         static changed(target: HTMLElement = document.body) {
-            const end = LOAD_CALLBACKS.length;
+            const end = Lifecycle.loadCallbacks.length;
             let current = -1;
 
             while (++current < end) {
-                LOAD_CALLBACKS[current](target);
+                Lifecycle.loadCallbacks[current](target);
             }
 
             return this;
@@ -390,7 +412,12 @@ const singular = (function singularInit(window, document, undefined) {
     }
 
 
-    function route(this: any, requestUrl: string, elementIds?: string[]) {
+    function route(
+        this: any,
+        requestUrl: string,
+        elementIds: undefined | null | string[] = undefined,
+        push = true
+    ) {
 
         const {entries: styleEntries, urls: styleUrls} = getStyles(document.documentElement);
         const {entries: scriptEntries, urls: scriptUrls} = getScripts(document.documentElement);
@@ -411,13 +438,11 @@ const singular = (function singularInit(window, document, undefined) {
             document.head.append(node);
         }
 
-        const page = PAGES[getHref(START_PATH)];
-        page.url = START_PATH;
+        const page = PAGES[CURRENT_URL];
+        page.url = START_URL;
         page.title = document.title;
         page.styles = styleUrls;
         page.scripts = scriptUrls;
-        page.html = START_HTML as string;
-        START_HTML = null;
 
         const {links} = document;
         current = links.length;
@@ -434,11 +459,16 @@ const singular = (function singularInit(window, document, undefined) {
         // @ts-ignore
         return (route = routeAfterFirstRouted).apply(this, arguments as any);
 
-        function routeAfterFirstRouted(requestUrl: string, elementIds?: string[]) {
+        function routeAfterFirstRouted(
+            requestUrl: string,
+            elementIds: undefined | null | string[] = undefined,
+            push = true
+        ) {
             // console.debug(`[singular] ${href}`);
 
             if (LOADED) {
-                const callbacks = PAGES[CURRENT_PATH].exitCallbacks.concat(UNLOAD_CALLBACKS);
+                const lifecycle = LIFECYCLES[CURRENT_SCRIPT_URL]
+                const callbacks = lifecycle.exitCallbacks.concat(Lifecycle.unloadCallbacks);
                 const end = callbacks.length;
                 let current = -1;
 
@@ -457,29 +487,31 @@ const singular = (function singularInit(window, document, undefined) {
             // document.title = requestUrl.substring(requestUrl.indexOf(':') + 3);
 
             LOADED = false;
-            CURRENT_PATH = getHref(requestUrl);
+            CURRENT_URL = getHref(requestUrl);
+            CURRENT_SCRIPT_URL = getScriptUrl(requestUrl);
 
-            const page = PAGES[CURRENT_PATH];
+            const page = PAGES[CURRENT_URL];
 
             if (page) {
-
                 if (CONFIGURE.enableKeepHtml) {
+                    push && pushState(getFixedUrl(page.url, requestUrl));
                     render(page);
-                    pushState(page.url)
-                } else {
-                    // noinspection JSUnusedLocalSymbols
-                    request(requestUrl)
-                        .then(([responseUrl, html]) => {
-                            page.html = html;
-                            render(page);
-                        });
+
                 }
-            } else {
-                request(requestUrl)
+                // noinspection JSUnusedLocalSymbols
+                return request(requestUrl)
                     .then(([responseUrl, html]) => {
-                        parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds as string[]);
+                        page.html = html;
+                        push && pushState(responseUrl);
+                        render(page);
                     });
             }
+
+            return request(requestUrl)
+                .then(([responseUrl, html]) => {
+                    push && pushState(responseUrl);
+                    parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds as string[]);
+                });
         }
 
         function request(href: string) {
@@ -494,7 +526,6 @@ const singular = (function singularInit(window, document, undefined) {
 
         function responseText(response: Response) {
             const {url} = response;
-            pushState(url);
             return Promise.all([
                 Promise.resolve(url),
                 response.text()
@@ -505,8 +536,18 @@ const singular = (function singularInit(window, document, undefined) {
             console.warn(reason);
         }
 
-        function pushState(url: string) {
-            history.pushState(new State(url), url, url);
+        function pushState(responseUrl: string) {
+            history.pushState(new State(responseUrl), responseUrl, responseUrl);
+        }
+
+        function getFixedUrl(responseUrl: string, requestUrl: string): string {
+            const parsedResponseUrl = new URL(responseUrl);
+            const parsedRequestUrl = new URL(requestUrl);
+
+            parsedResponseUrl.search = parsedRequestUrl.search;
+            parsedResponseUrl.hash = parsedRequestUrl.hash;
+
+            return '' + parsedRequestUrl;
         }
     }
 
@@ -561,11 +602,17 @@ const singular = (function singularInit(window, document, undefined) {
         page.classes = classMap
         page.html = html
 
-        const url = new URL(CURRENT_PATH);
+        const url = new URL(CURRENT_URL);
         if (url.pathname.endsWith('/')) {
             url.pathname = url.pathname.substring(0, url.pathname.length - 1);
         }
         PAGES['' + url] = page;
+        const scriptUrl = getScriptUrl('' + url);
+
+        if (!LIFECYCLES[scriptUrl]) {
+            LIFECYCLES[scriptUrl] = new Lifecycle();
+        }
+
         render(page);
     }
 
@@ -588,16 +635,26 @@ const singular = (function singularInit(window, document, undefined) {
         return '' + url;
     }
 
-    function getScriptUrl(href: string){
+    function getScriptUrl(href: string) {
+        const url = new URL(href);
+        url.hash = '';
+        url.search = '';
 
+        let {pathname} = url;
+        if (pathname.endsWith('/')) {
+            url.pathname = pathname.substring(0, pathname.length - 1);
+        }
+
+        return '' + url;
     }
-
 
     function render(page: Page) {
         const {url, title, styles, scripts, classes, html} = page;
         const {elementIds, classSelectors} = CONFIGURE;
 
-        document.title = title || url.substring(url.indexOf('://') + 3);
+        if(!CONFIGURE.disableTitleChange) {
+            document.title = title || url.substring(url.indexOf('://') + 3);
+        }
 
         if (classSelectors && classes) {
             let current = classSelectors.length;
@@ -640,7 +697,7 @@ const singular = (function singularInit(window, document, undefined) {
         }
 
         if (changeAll) {
-            document.body.innerHTML = '';
+            document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
             document.body.append(...(fragment.getElementsByTagName('BODY')[0] || fragment).children);
         }
 
@@ -723,7 +780,7 @@ const singular = (function singularInit(window, document, undefined) {
         while (++current < end) {
             const node = nodes[current];
 
-            if (!node.getAttribute(attributeName) || (node as any)[attributeName].startsWith(ORIGIN)) {
+            if (!node.getAttribute(attributeName) || !(node as any)[attributeName].startsWith(ORIGIN)) {
                 continue;
             }
 
@@ -751,23 +808,23 @@ const singular = (function singularInit(window, document, undefined) {
     function onLoad() {
         // console.debug('[singular] before load');
 
-        const end = SERIES_CALLBACKS.length;
+        const end = Lifecycle.seriesCallbacks.length;
         let current = -1;
 
         let series = Promise.resolve();
         while (++current < end) {
-            const callback = SERIES_CALLBACKS[current];
+            const callback = Lifecycle.seriesCallbacks[current];
             series = series.then(() => callback());
         }
 
         const prepares = [series];
-        current = PARALLEL_CALLBACKS.length;
+        current = Lifecycle.parallelCallbacks.length;
         while (current-- > 0) {
-            prepares[prepares.length] = PARALLEL_CALLBACKS[current]();
+            prepares[prepares.length] = Lifecycle.parallelCallbacks[current]();
         }
 
-        SERIES_CALLBACKS = [];
-        PARALLEL_CALLBACKS = [];
+        Lifecycle.seriesCallbacks = [];
+        Lifecycle.parallelCallbacks = [];
 
         Promise.all(prepares)
             .then(onLoading)
@@ -795,11 +852,12 @@ const singular = (function singularInit(window, document, undefined) {
         // console.debug('[singular] Loaded');
         LOADED = true;
 
-        const page = PAGES[CURRENT_PATH];
+        const lifecycle = LIFECYCLES[CURRENT_SCRIPT_URL];
+
         const callbacks = [
-            ...READY_CALLBACKS.splice(0, READY_CALLBACKS.length),
-            ...LOAD_CALLBACKS,
-            ...page.enterCallbacks
+            ...Lifecycle.readyCallbacks.splice(0, Lifecycle.readyCallbacks.length),
+            ...Lifecycle.loadCallbacks,
+            ...lifecycle.enterCallbacks
         ];
 
         const end = callbacks.length;

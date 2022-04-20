@@ -42,6 +42,11 @@ interface SingularConfigure {
      * @default false
      */
     enableHashString: boolean;
+    /**
+     * Disable Change Browser Title after Routed
+     * @default false
+     */
+    disableTitleChange: boolean;
 }
 declare type VoidPromiseCallback = (...args: any) => Promise<void>;
 declare type SingularAnchor = HTMLAnchorElement & {
