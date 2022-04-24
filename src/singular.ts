@@ -7,14 +7,14 @@ interface SingularConfigure {
      */
     development: boolean;
     /**
-     * Changeable Element's ID after Routed
+     * Changeable Element Selector after Routed
      * @default null
      * @description
      *  - null | 'body': Change all Children of BODY
-     *  - 'id': Change Single Element
-     *  - ['id1' 'id2']: Change Multiple Elements
+     *  - '#id': Change Single Element
+     *  - ['#id1' '#id2']: Change Multiple Elements
      */
-    elementIds: undefined | null | string | string[];
+    outletSelectors: undefined | null | string | string[];
 
     /**
      * Changeable Element Class Attribute after Routed
@@ -67,7 +67,7 @@ const singular = (function singularInit(window, document, undefined) {
 
     let CONFIGURE: SingularConfigure = {
         development: false,
-        elementIds: null,
+        outletSelectors: null,
         classSelectors: null,
         enableKeepHtml: false,
         enableKeepStyles: false,
@@ -149,8 +149,9 @@ const singular = (function singularInit(window, document, undefined) {
             const {href} = node;
             const rawHref = node.getAttribute('href');
 
-            if (!href.startsWith(ORIGIN)
+            if (node.target
                 || node.download
+                || !href.startsWith(ORIGIN)
                 || (rawHref && rawHref.startsWith('#'))
             ) {
                 node._singularAnchor = false;
@@ -212,14 +213,14 @@ const singular = (function singularInit(window, document, undefined) {
          * @param configure
          */
         static configure(configure: Partial<SingularConfigure>) {
-            const {elementIds, classSelectors} = configure;
-            if (elementIds) {
-                if (typeof elementIds === 'string') {
-                    configure.elementIds = [elementIds];
+            const {outletSelectors, classSelectors} = configure;
+            if (outletSelectors) {
+                if (typeof outletSelectors === 'string') {
+                    configure.outletSelectors = [outletSelectors];
                 }
 
-                if (elementIds.indexOf('body') > -1) {
-                    configure.elementIds = null;
+                if (outletSelectors.indexOf('body') > -1) {
+                    configure.outletSelectors = ['body'];
                 }
             }
 
@@ -364,11 +365,11 @@ const singular = (function singularInit(window, document, undefined) {
         /**
          * Move to Other Document
          * @param requestUrl
-         * @param elementIds
+         * @param outletSelectors
          */
-        static route(requestUrl: string, elementIds?: string[]) {
+        static route(requestUrl: string, outletSelectors?: string[]) {
             try {
-                route(requestUrl, elementIds)
+                route(requestUrl, outletSelectors)
             } catch (reason) {
                 console.warn(reason);
 
@@ -415,7 +416,7 @@ const singular = (function singularInit(window, document, undefined) {
     function route(
         this: any,
         requestUrl: string,
-        elementIds: undefined | null | string[] = undefined,
+        outletSelectors: undefined | null | string[] = undefined,
         push = true
     ) {
 
@@ -461,7 +462,7 @@ const singular = (function singularInit(window, document, undefined) {
 
         function routeAfterFirstRouted(
             requestUrl: string,
-            elementIds: undefined | null | string[] = undefined,
+            outletSelectors: undefined | null | string[] = undefined,
             push = true
         ) {
             // console.debug(`[singular] ${href}`);
@@ -510,7 +511,7 @@ const singular = (function singularInit(window, document, undefined) {
             return request(requestUrl)
                 .then(([responseUrl, html]) => {
                     push && pushState(responseUrl);
-                    parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds as string[]);
+                    parse(requestUrl, responseUrl, html, outletSelectors || CONFIGURE.outletSelectors as string[]);
                 });
         }
 
@@ -650,7 +651,7 @@ const singular = (function singularInit(window, document, undefined) {
 
     function render(page: Page) {
         const {url, title, styles, scripts, classes, html} = page;
-        const {elementIds, classSelectors} = CONFIGURE;
+        const {outletSelectors, classSelectors} = CONFIGURE;
 
         if(!CONFIGURE.disableTitleChange) {
             document.title = title || url.substring(url.indexOf('://') + 3);
@@ -669,13 +670,13 @@ const singular = (function singularInit(window, document, undefined) {
 
         const fragment = fragmentHtml(html);
         let changeAll = false;
-        if (elementIds) {
+        if (outletSelectors) {
             const replaceMap: [HTMLElement, HTMLElement][] = [];
-            let current = elementIds.length;
+            let current = outletSelectors.length;
             while (current-- > 0) {
-                const selector = elementIds[current];
-                const from = fragment.querySelector('#' + selector) as HTMLElement;
-                const to = byId(selector) as HTMLElement;
+                const selector = outletSelectors[current];
+                const from = fragment.querySelector(selector) as HTMLElement;
+                const to = document.querySelector(selector) as HTMLElement;
 
                 if (!from || !to) {
                     changeAll = true;

@@ -4,7 +4,7 @@ const singular = (function singularInit(window, document, undefined) {
     const { from: FROM } = Array;
     let CONFIGURE = {
         development: false,
-        elementIds: null,
+        outletSelectors: null,
         classSelectors: null,
         enableKeepHtml: false,
         enableKeepStyles: false,
@@ -69,8 +69,9 @@ const singular = (function singularInit(window, document, undefined) {
         }
         const { href } = node;
         const rawHref = node.getAttribute('href');
-        if (!href.startsWith(ORIGIN)
+        if (node.target
             || node.download
+            || !href.startsWith(ORIGIN)
             || (rawHref && rawHref.startsWith('#'))) {
             node._singularAnchor = false;
             return true;
@@ -110,13 +111,13 @@ const singular = (function singularInit(window, document, undefined) {
          * @param configure
          */
         static configure(configure) {
-            const { elementIds, classSelectors } = configure;
-            if (elementIds) {
-                if (typeof elementIds === 'string') {
-                    configure.elementIds = [elementIds];
+            const { outletSelectors, classSelectors } = configure;
+            if (outletSelectors) {
+                if (typeof outletSelectors === 'string') {
+                    configure.outletSelectors = [outletSelectors];
                 }
-                if (elementIds.indexOf('body') > -1) {
-                    configure.elementIds = null;
+                if (outletSelectors.indexOf('body') > -1) {
+                    configure.outletSelectors = ['body'];
                 }
             }
             if (classSelectors) {
@@ -239,11 +240,11 @@ const singular = (function singularInit(window, document, undefined) {
         /**
          * Move to Other Document
          * @param requestUrl
-         * @param elementIds
+         * @param outletSelectors
          */
-        static route(requestUrl, elementIds) {
+        static route(requestUrl, outletSelectors) {
             try {
-                route(requestUrl, elementIds);
+                route(requestUrl, outletSelectors);
             }
             catch (reason) {
                 console.warn(reason);
@@ -279,7 +280,7 @@ const singular = (function singularInit(window, document, undefined) {
         fragmentHtml.innerHTML = html;
         return fragmentHtml;
     }
-    function route(requestUrl, elementIds = undefined, push = true) {
+    function route(requestUrl, outletSelectors = undefined, push = true) {
         const { entries: styleEntries, urls: styleUrls } = getStyles(document.documentElement);
         const { entries: scriptEntries, urls: scriptUrls } = getScripts(document.documentElement);
         let end = styleEntries.length;
@@ -312,7 +313,7 @@ const singular = (function singularInit(window, document, undefined) {
         }
         // @ts-ignore
         return (route = routeAfterFirstRouted).apply(this, arguments);
-        function routeAfterFirstRouted(requestUrl, elementIds = undefined, push = true) {
+        function routeAfterFirstRouted(requestUrl, outletSelectors = undefined, push = true) {
             // console.debug(`[singular] ${href}`);
             if (LOADED) {
                 const lifecycle = LIFECYCLES[CURRENT_SCRIPT_URL];
@@ -353,7 +354,7 @@ const singular = (function singularInit(window, document, undefined) {
             return request(requestUrl)
                 .then(([responseUrl, html]) => {
                 push && pushState(responseUrl);
-                parse(requestUrl, responseUrl, html, elementIds || CONFIGURE.elementIds);
+                parse(requestUrl, responseUrl, html, outletSelectors || CONFIGURE.outletSelectors);
             });
         }
         function request(href) {
@@ -467,7 +468,7 @@ const singular = (function singularInit(window, document, undefined) {
     }
     function render(page) {
         const { url, title, styles, scripts, classes, html } = page;
-        const { elementIds, classSelectors } = CONFIGURE;
+        const { outletSelectors, classSelectors } = CONFIGURE;
         if (!CONFIGURE.disableTitleChange) {
             document.title = title || url.substring(url.indexOf('://') + 3);
         }
@@ -483,13 +484,13 @@ const singular = (function singularInit(window, document, undefined) {
         }
         const fragment = fragmentHtml(html);
         let changeAll = false;
-        if (elementIds) {
+        if (outletSelectors) {
             const replaceMap = [];
-            let current = elementIds.length;
+            let current = outletSelectors.length;
             while (current-- > 0) {
-                const selector = elementIds[current];
-                const from = fragment.querySelector('#' + selector);
-                const to = byId(selector);
+                const selector = outletSelectors[current];
+                const from = fragment.querySelector(selector);
+                const to = document.querySelector(selector);
                 if (!from || !to) {
                     changeAll = true;
                     break;

@@ -7,14 +7,14 @@ interface SingularConfigure {
      */
     development: boolean;
     /**
-     * Changeable Element's ID after Routed
+     * Changeable Element Selector after Routed
      * @default null
      * @description
      *  - null | 'body': Change all Children of BODY
-     *  - 'id': Change Single Element
-     *  - ['id1' 'id2']: Change Multiple Elements
+     *  - '#id': Change Single Element
+     *  - ['#id1' '#id2']: Change Multiple Elements
      */
-    elementIds: undefined | null | string | string[];
+    outletSelectors: undefined | null | string | string[];
     /**
      * Changeable Element Class Attribute after Routed
      * @default null
@@ -121,9 +121,9 @@ declare const singular: {
     /**
      * Move to Other Document
      * @param requestUrl
-     * @param elementIds
+     * @param outletSelectors
      */
-    route(requestUrl: string, elementIds?: string[] | undefined): null | undefined;
+    route(requestUrl: string, outletSelectors?: string[] | undefined): null | undefined;
     /**
      * Signal for DOM Changed by any codes
      * @param target

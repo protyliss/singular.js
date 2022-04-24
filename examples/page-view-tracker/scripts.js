@@ -14,8 +14,8 @@ function debug(message) {
 
 singular
 	.configure({
-		elementIds : ['heading'],
-		enableKeepHtml: true
+		outletSelectors: ['heading'],
+		enableKeepHtml : true
 	})
 	.ready(() => {
 		debug('singular.ready');
