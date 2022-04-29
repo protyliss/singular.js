@@ -552,7 +552,7 @@ const singular = (function singularInit(window, document, undefined) {
         }
     }
 
-    function parse(requestUrl: string, responseUrl: string, rawHtml: string, elementIds?: string[]) {
+    function parse(requestUrl: string, responseUrl: string, rawHtml: string, outletSelectors?: string[]) {
         const fragment = fragmentHtml(rawHtml)
         const title = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
         const {classSelectors} = CONFIGURE;
@@ -581,11 +581,11 @@ const singular = (function singularInit(window, document, undefined) {
         }
 
         let html: string;
-        if (elementIds) {
+        if (outletSelectors) {
             const targetHTML = [];
-            let current = elementIds.length;
+            let current = outletSelectors.length;
             while (current-- > 0) {
-                const target = fragment.querySelector('#' + elementIds[current]);
+                const target = fragment.querySelector(outletSelectors[current]);
                 if (target) {
                     targetHTML[targetHTML.length] = target.outerHTML;
                 }
@@ -698,7 +698,7 @@ const singular = (function singularInit(window, document, undefined) {
         }
 
         if (changeAll) {
-            document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
+            // document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
             document.body.append(...(fragment.getElementsByTagName('BODY')[0] || fragment).children);
         }
 
