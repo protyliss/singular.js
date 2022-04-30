@@ -1,72 +1,69 @@
-/// <reference path="singular.ts" />
+import {singular} from './singular';
 
-(function (singular) {
-    const ORIGIN_LENGTH = location.origin.length;
-    let ACTIVATED_LINKS: HTMLElement[] = [];
+const ORIGIN_LENGTH = location.origin.length;
+let ACTIVATED_LINKS: HTMLElement[] = [];
 
-    singular.activeLink = function (selector: string) {
-        return singular
-            .load(() => {
-                activeLinks(selector)
-            })
-            .unload(inactiveLinks);
+function activateSelector(selector: string) {
+    const containers = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+    let current = containers.length;
+    while (current-- > 0) {
+        activateContainer(containers[current]);
+    }
+}
+
+function inactivateAnchors() {
+    const anchors = ACTIVATED_LINKS;
+    let current = anchors.length;
+    while (current-- > 0) {
+        anchors[current].classList.remove('_active');
     }
 
-    function activeLinks(selector: string) {
-        const containers = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
-        let current = containers.length;
-        while (current-- > 0) {
-            activeLink(containers[current]);
+    ACTIVATED_LINKS = [];
+}
+
+
+function activateContainer(container: HTMLElement) {
+    const currentPath = location.href.substring(ORIGIN_LENGTH);
+
+    const anchors = container.getElementsByTagName('A') as any as HTMLAnchorElement[];
+    let current = anchors.length;
+    while (current-- > 0) {
+        let anchor = anchors[current];
+
+        if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
+            continue;
         }
-    }
 
-    function inactiveLinks() {
-        const anchors = ACTIVATED_LINKS;
-        let current = anchors.length;
-        while (current-- > 0) {
-            anchors[current].classList.remove('_active');
-        }
+        activateAnchor(anchor);
+        anchor.focus();
+        anchor.blur();
 
-        ACTIVATED_LINKS = [];
-    }
-
-
-    function activeLink(container: HTMLElement) {
-        const currentPath = location.href.substring(ORIGIN_LENGTH);
-
-        const anchors = container.getElementsByTagName('A') as any as HTMLAnchorElement[];
-        let current = anchors.length;
-        while (current-- > 0) {
-            let anchor = anchors[current];
-
-            if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
-                continue;
-            }
-
-            activate(anchor);
-            anchor.focus();
-            anchor.blur();
-
-            do {
-                let ul = anchor.closest('ul')
-                if (ul) {
-                    const li = ul.closest('li');
-                    if (li) {
-                        anchor = li.getElementsByTagName('A')[0] as HTMLAnchorElement;
-                        if (anchor) {
-                            activate(anchor);
-                            continue;
-                        }
+        do {
+            let ul = anchor.closest('ul')
+            if (ul) {
+                const li = ul.closest('li');
+                if (li) {
+                    anchor = li.getElementsByTagName('A')[0] as HTMLAnchorElement;
+                    if (anchor) {
+                        activateAnchor(anchor);
+                        continue;
                     }
                 }
-                break;
-            } while (anchor);
-        }
+            }
+            break;
+        } while (anchor);
     }
+}
 
-    function activate(anchor: HTMLElement) {
-        ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
-        anchor.classList.add('_active');
-    }
+function activateAnchor(anchor: HTMLElement) {
+    ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+    anchor.classList.add('_active');
+}
 
-})(window['singular' as any] as any)
+export function activeLink(selector: string) {
+    return singular
+        .load(() => {
+            activateSelector(selector)
+        })
+        .unload(inactivateAnchors);
+}

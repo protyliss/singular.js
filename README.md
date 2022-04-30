@@ -1,6 +1,6 @@
 # Singular
 
-MPA[^mpa] transforms to SPA[^spa]
+Micro-framework as MPA[^mpa] transforms to SPA[^spa]
 
 ## Overview
 
@@ -16,9 +16,15 @@ Singular helps the MPA works like SPA.
   * `css` files[^optimize-css]
   * `script` files
 
+### Roadmap
+
+* `load` and `enter` callback with exactly elements
+
+---
+
 ## Migration
 
-Just change the DOMContentLoaded-like Function to singular
+Just change the DOMContentLoaded-like Function to singular's Lifecycle Functions
 
 ### `DOMContentLoaded` Event
 
@@ -31,37 +37,35 @@ window.addEventListener('DOMContentLoaded', callbackFunction)
 After:
 
 ```js
-singular(callbackFunction);
+singular.enter(callbackFunction);
 ```
 
-### Jquery
+### jQuery
 
 Before:
 
 ```js
 $(callbackFunction);
-$.load(callbackFunction);
+$.ready(callbackFunction);
 ```
 
 After:
 
 ```js
-singular(callbackFunction);
+singular.enter(callbackFunction);
 ```
 
 ---
 
-### Callback Register Methods
+### Lifecycle Functions
 
-| Method          | Run at           | Document at |
-|-----------------|------------------|-------------|
-| singular.ready  | DOMContentLoaded | Origin URL  |
-| singular.load   | DOMContentLoaded | Every URL   |
-| singular.enter  | DOMContentLoaded | Origin URL  |
-| singular.exit   | beforeunload     | Origin URL  |
-| singular.unload | beforeunload     | Every URL   |
-
-> `singular` is alias of `singular.enter`
+| Function            | Run at           | Document at | Runtime  |
+|---------------------|------------------|-------------|:---------|
+| singular.__ready__  | DOMContentLoaded | Origin URL  | Once     |
+| singular.__load__   | DOMContentLoaded | Every URL   | Multiple |
+| singular.__enter__  | DOMContentLoaded | Origin URL  | Multiple |
+| singular.__exit__   | beforeunload     | Origin URL  | Multiple |
+| singular.__unload__ | beforeunload     | Every URL   | Multiple |
 
 ---
 
@@ -69,7 +73,7 @@ singular(callbackFunction);
 
 [^spa]: Single Page Application
 
-[^optimize-rendering]: `elementIds` option is required.
+[^optimize-rendering]: `outletSelectorelementIds` option is required.
 
 [^optimize-html]: `enableKeepHtml` option is required.
 
