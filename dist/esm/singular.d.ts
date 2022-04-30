@@ -45,7 +45,18 @@ interface SingularConfigure {
     disableTitleChange: boolean;
 }
 declare type VoidPromiseCallback = (...args: any) => Promise<void>;
-declare type ChangedElementCallback = (changedElement: HTMLElement) => void;
+declare type ChangedElementCallback = (changedElements: ChangedElements) => void;
+declare class ChangedElements extends Array<Element> {
+    #private;
+    constructor(changedElements: Element[]);
+    getElementById(elementId: string): HTMLElement | null;
+    getElementsByTagName<K extends keyof HTMLElementTagNameMap>(qualifiedName: K): HTMLElementTagNameMap[K][];
+    getElementsByTagName<K extends keyof SVGElementTagNameMap>(qualifiedName: K): SVGElementTagNameMap[K][];
+    getElementsByClassName(classNames: string): Element[];
+    querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K];
+    querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
+    querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[];
+}
 export declare const singular: {
     configure: typeof configure;
     ready: typeof ready;
@@ -186,9 +197,9 @@ export declare function unload(callback: Function): {
 export declare function route(requestUrl: string, outletSelectors?: string): null | undefined;
 /**
  * Signal for DOM Changed by any codes
- * @param target
+ * @param changedElements
  */
-export declare function changed(target?: HTMLElement): {
+export declare function changed(changedElements?: Element[]): {
     configure: typeof configure;
     ready: typeof ready;
     load: typeof load;

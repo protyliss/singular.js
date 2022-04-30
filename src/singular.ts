@@ -55,8 +55,9 @@ type VoidPromiseCallback = (...args: any) => Promise<void>;
 type SingularAnchor = HTMLAnchorElement & { _singularAnchor?: false | HTMLAnchorElement };
 type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
-type ChangedElementCallback = (changedElement: HTMLElement) => void;
+type ChangedElementCallback = (changedElements: ChangedElements) => void;
 
+document.documentElement.style.visibility = 'hidden';
 
 const {href: START_URL, origin: ORIGIN} = location;
 const {from: FROM} = Array;
@@ -112,6 +113,64 @@ class State {
         this.singular = {
             href
         };
+    }
+}
+
+class ChangedElements extends Array<Element> {
+    constructor(changedElements: Element[]) {
+        super(0);
+        this.push(...changedElements);
+    }
+
+    #getElements<E extends Element = Element>(methodName: keyof Element, selectors: keyof HTMLElementTagNameMap | string): E[] {
+        const list = [];
+        const end = this.length;
+        let current = -1;
+        while (++current < end) {
+            const nodes = this[current].querySelectorAll(selectors);
+            const nodeEnd = nodes.length;
+            let nodeCurrent = -1;
+            while (++nodeCurrent < nodeEnd) {
+                const node = nodes[nodeCurrent];
+                if (list.indexOf(node) === -1) {
+                    list[list.length] = node;
+                }
+            }
+        }
+
+        return list as E[];
+    }
+
+    getElementById(elementId: string) {
+        return document.getElementById(elementId);
+    }
+
+    getElementsByTagName<K extends keyof HTMLElementTagNameMap>(qualifiedName: K): HTMLElementTagNameMap[K][];
+    getElementsByTagName<K extends keyof SVGElementTagNameMap>(qualifiedName: K): SVGElementTagNameMap[K][];
+    getElementsByTagName<E extends Element = Element>(qualifiedName: string): E[] {
+        return this.#getElements('getElementsByTagName', qualifiedName);
+    }
+
+    getElementsByClassName(classNames: string) {
+        return this.#getElements('getElementsByClassName', classNames);
+    }
+
+    querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K];
+    querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
+    querySelector<E extends Element = Element>(selectors: string): E | null {
+        const end = this.length;
+        let current = -1;
+        while (++current < end) {
+            const node = this[current].querySelector(selectors);
+            if (node) {
+                return node as E;
+            }
+        }
+        return null;
+    }
+
+    querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[] {
+        return this.#getElements('querySelectorAll', selectors);
     }
 }
 
@@ -238,7 +297,7 @@ export function ready(callback: ChangedElementCallback) {
     Lifecycle.readyCallbacks[Lifecycle.readyCallbacks.length] = callback;
 
     if (LOADED) {
-        callback(document.body);
+        callback(new ChangedElements([document.body]));
     }
 
     return singular;
@@ -252,7 +311,7 @@ export function load(callback: ChangedElementCallback) {
     Lifecycle.loadCallbacks[Lifecycle.loadCallbacks.length] = callback;
 
     if (LOADED) {
-        callback(document.body);
+        callback(new ChangedElements([document.body]));
     }
 
     return singular;
@@ -268,7 +327,7 @@ export function enter(callback: ChangedElementCallback) {
     enterCallbacks[enterCallbacks.length] = callback;
 
     if (LOADED) {
-        callback(document.body);
+        callback(new ChangedElements([document.body]));
     }
 
     return singular;
@@ -298,7 +357,7 @@ export function unload(callback: Function) {
  */
 export function route(requestUrl: string, outletSelectors?: string) {
     try {
-        routing(requestUrl, outletSelectors)
+        route$(requestUrl, outletSelectors)
     } catch (reason) {
         console.warn(reason);
 
@@ -311,14 +370,16 @@ export function route(requestUrl: string, outletSelectors?: string) {
 
 /**
  * Signal for DOM Changed by any codes
- * @param target
+ * @param changedElements
  */
-export function changed(target: HTMLElement = document.body) {
+export function changed(changedElements: Element[] = [document.body]) {
+    const changedElements_ = new ChangedElements(changedElements);
+
     const end = Lifecycle.loadCallbacks.length;
     let current = -1;
 
     while (++current < end) {
-        Lifecycle.loadCallbacks[current](target);
+        Lifecycle.loadCallbacks[current](changedElements_);
     }
 
     return singular;
@@ -338,12 +399,12 @@ function fragmentHtml(html: string) {
 }
 
 
-function routing(
+function route$(
     this: any,
     requestUrl: string,
     outletSelectors: undefined | null | string = undefined,
     push = true
-) {
+): Promise<Element[]> {
 
     const {entries: styleEntries, urls: styleUrls} = getStyles(document.documentElement);
     const {entries: scriptEntries, urls: scriptUrls} = getScripts(document.documentElement);
@@ -384,7 +445,7 @@ function routing(
     }
 
     // @ts-ignore
-    return (routing = routeAfterFirstRouted).apply(this, arguments as any);
+    return (route$ = routeAfterFirstRouted).apply(this, arguments as any);
 
     function routeAfterFirstRouted(
         requestUrl: string,
@@ -422,21 +483,21 @@ function routing(
         if (page) {
             if (CONFIGURE.enableKeepHtml) {
                 push && pushState(getFixedUrl(page.url, requestUrl));
-                return render(page);
+                return render$(page);
             }
             // noinspection JSUnusedLocalSymbols
             return request(requestUrl)
                 .then(([responseUrl, html]) => {
                     page.html = html;
                     push && pushState(responseUrl);
-                    render(page);
+                    return render$(page);
                 });
         }
 
         return request(requestUrl)
             .then(([responseUrl, html]) => {
                 push && pushState(responseUrl);
-                parse(requestUrl, responseUrl, html);
+                return parse$(requestUrl, responseUrl, html);
             });
     }
 
@@ -492,7 +553,7 @@ function getClassNameMap(target: Document | HTMLElement) {
 }
 
 
-function parse(requestUrl: string, responseUrl: string, rawHtml: string) {
+function parse$(requestUrl: string, responseUrl: string, rawHtml: string): Promise<void | Element[]> {
     const fragment = fragmentHtml(rawHtml)
     const title = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
 
@@ -531,7 +592,7 @@ function parse(requestUrl: string, responseUrl: string, rawHtml: string) {
         LIFECYCLES[scriptUrl] = new Lifecycle();
     }
 
-    render(page);
+    return render$(page);
 }
 
 function getHref(href: string) {
@@ -566,7 +627,11 @@ function getScriptUrl(href: string) {
     return '' + url;
 }
 
-function render(page: Page) {
+/**
+ *
+ * @param page
+ */
+function render$(page: Page): Promise<void | Element[]> {
     const {url, title, styles, scripts, classes, html} = page;
     const {outletSelectors, classSelectors} = CONFIGURE;
 
@@ -587,16 +652,17 @@ function render(page: Page) {
 
     const fragment = fragmentHtml(html);
     let changeAll = false;
+    let changedElements: Element[];
     if (outletSelectors) {
-        const fragmentElements = fragment.querySelectorAll(outletSelectors);
         const currentElements = document.querySelectorAll(outletSelectors);
+        changedElements = Array.from(fragment.querySelectorAll(outletSelectors));
 
 
-        if (fragmentElements.length === currentElements.length) {
-            let replaceMap: [Element, Element][] = [];
-            let current = fragmentElements.length;
+        if (changedElements.length === currentElements.length) {
+
+            let current = changedElements.length;
             while (current-- > 0) {
-                const fragmentElement = fragmentElements[current];
+                const fragmentElement = changedElements[current];
                 const currentElement = currentElements[current];
 
                 if (fragmentElement.tagName !== currentElement.tagName) {
@@ -604,16 +670,13 @@ function render(page: Page) {
                     break;
                 }
 
-                replaceMap[replaceMap.length] = [
-                    fragmentElement,
-                    currentElement
-                ]
             }
 
             if (!changeAll) {
-                current = replaceMap.length;
+                current = changedElements.length;
                 while (current-- > 0) {
-                    const [from, to] = replaceMap[current];
+                    const from = changedElements[current];
+                    const to = currentElements[current];
                     (to.parentNode as HTMLElement).replaceChild(from, to);
                 }
             }
@@ -626,6 +689,7 @@ function render(page: Page) {
 
     if (changeAll) {
         document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
+        changedElements = [document.body];
     }
 
     fragment.innerHTML = '';
@@ -684,7 +748,7 @@ function render(page: Page) {
         document.head.append(...elements);
     }
 
-    Promise.all(importPromises)
+    return Promise.all(importPromises)
         .then(() => {
             let current = removeStyles.length;
             while (current-- > 0) {
@@ -693,8 +757,9 @@ function render(page: Page) {
                     link.parentNode.removeChild(link);
                 }
             }
-            onLoad();
-        })
+
+            return onLoad$(changedElements);
+        });
 }
 
 function getResources<T extends HTMLElement>(parentElement: HTMLElement, selector: string, attributeName: string) {
@@ -731,7 +796,7 @@ function getFixedUrl(node: HTMLElement, attribute: string) {
     return '' + (new URL(node.getAttribute(attribute) as string, location.href));
 }
 
-function onLoad() {
+function onLoad$(changedElements: Element[]): Promise<void | Element[]> {
     // console.debug('[singular] before load');
 
     const end = Lifecycle.seriesCallbacks.length;
@@ -752,19 +817,24 @@ function onLoad() {
     Lifecycle.seriesCallbacks = [];
     Lifecycle.parallelCallbacks = [];
 
-    Promise.all(prepares)
-        .then(onLoading)
+    return Promise.all(prepares)
+        .then(() => {
+            return onLoading$(changedElements)
+        })
         .catch(catchReload);
 }
 
-function onLoading() {
+function onLoading$(changedElements: Element[]) {
     // console.debug('[singular] after load');
     document.documentElement.style.visibility = 'inherit';
+
     try {
-        onLoaded();
+        onLoaded(new ChangedElements(changedElements));
     } catch (reason) {
         console.warn(reason)
     }
+
+    return changedElements;
 }
 
 function catchReload(reason: Error) {
@@ -774,7 +844,7 @@ function catchReload(reason: Error) {
     }
 }
 
-function onLoaded(changedElement = document.body) {
+function onLoaded(changedElements: ChangedElements) {
     // console.debug('[singular] Loaded');
     LOADED = true;
 
@@ -789,7 +859,7 @@ function onLoaded(changedElement = document.body) {
     const end = callbacks.length;
     let current = -1;
     while (++current < end) {
-        callbacks[current](changedElement);
+        callbacks[current](changedElements);
     }
 }
 
@@ -846,7 +916,8 @@ addEventListener(
         const {state} = event;
 
         if (state && state.singular) {
-            routing(state.singular.href, undefined, false);
+            route$(state.singular.href, undefined, false)
+                .then();
         }
 
         return true;
@@ -871,8 +942,7 @@ addEventListener(
             delete LIFECYCLES[START_URL];
         }
 
-        document.documentElement.style.visibility = 'hidden';
-
-        onLoad();
+        onLoad$([document.documentElement])
+            .then();
     }
 );

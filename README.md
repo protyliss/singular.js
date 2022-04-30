@@ -16,10 +16,6 @@ Singular helps the MPA works like SPA.
   * `css` files[^optimize-css]
   * `script` files
 
-### Roadmap
-
-* `load` and `enter` callback with exactly elements
-
 ---
 
 ## Migration
