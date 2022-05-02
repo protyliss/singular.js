@@ -1,6 +1,6 @@
 {
   "name": "singular.js",
-  "version": "2.16.0",
+  "version": "2.16.1",
   "description": "Micro-framework as MPA transform to SPA-like",
   "main": "dist/esm/singular.js",
   "type": "module",

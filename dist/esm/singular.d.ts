@@ -57,8 +57,10 @@ declare class ChangedElements extends Array<Element> {
     querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
     querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[];
 }
-export declare const singular: {
+export declare const chaining: {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -72,6 +74,8 @@ export declare const singular: {
  */
 export declare function configure(values: Partial<SingularConfigure>): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -104,6 +108,8 @@ export declare function addScript(src: string, async?: boolean): {
  */
 export declare function parallel(callback: VoidPromiseCallback): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -120,6 +126,8 @@ export declare function parallel(callback: VoidPromiseCallback): {
  */
 export declare function series(callback: VoidPromiseCallback): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -133,6 +141,8 @@ export declare function series(callback: VoidPromiseCallback): {
  */
 export declare function ready(callback: ChangedElementCallback): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -146,6 +156,8 @@ export declare function ready(callback: ChangedElementCallback): {
  */
 export declare function load(callback: ChangedElementCallback): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -160,6 +172,8 @@ export declare function load(callback: ChangedElementCallback): {
  */
 export declare function enter(callback: ChangedElementCallback): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -173,6 +187,8 @@ export declare function enter(callback: ChangedElementCallback): {
  */
 export declare function exit(callback: Function): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -182,6 +198,8 @@ export declare function exit(callback: Function): {
 };
 export declare function unload(callback: Function): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;
@@ -201,6 +219,8 @@ export declare function route(requestUrl: string, outletSelectors?: string): nul
  */
 export declare function changed(changedElements?: Element[]): {
     configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
     ready: typeof ready;
     load: typeof load;
     enter: typeof enter;

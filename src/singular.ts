@@ -60,7 +60,9 @@ type ChangedElementCallback = (changedElements: ChangedElements) => void;
 document.documentElement.style.visibility = 'hidden';
 
 const {href: START_URL, origin: ORIGIN} = location;
-const {from: FROM} = Array;
+const {isArray: IS_ARRAY, from: FROM} = Array;
+const {keys: KEYS} = Object;
+
 const ESM = !document.currentScript;
 
 let CONFIGURE: SingularConfigure = {
@@ -119,7 +121,12 @@ class State {
 class ChangedElements extends Array<Element> {
     constructor(changedElements: Element[]) {
         super(0);
-        this.push(...changedElements);
+        this.push.apply(
+            this,
+            IS_ARRAY(changedElements) ?
+                changedElements :
+                [changedElements]
+        );
     }
 
     #getElements<E extends Element = Element>(methodName: keyof Element, selectors: keyof HTMLElementTagNameMap | string): E[] {
@@ -185,8 +192,10 @@ const LIFECYCLES: Record<string, Lifecycle> = {
     [START_URL]: new Lifecycle
 };
 
-export const singular = {
+export const chaining = {
     configure,
+    series,
+    parallel,
     ready,
     load,
     enter,
@@ -203,7 +212,7 @@ export function configure(values: Partial<SingularConfigure>) {
     let {classSelectors} = values;
 
     if (classSelectors) {
-        if (!Array.isArray(classSelectors)) {
+        if (!IS_ARRAY(classSelectors)) {
             classSelectors = [classSelectors];
         }
         let current = classSelectors.length;
@@ -215,7 +224,8 @@ export function configure(values: Partial<SingularConfigure>) {
     }
 
     CONFIGURE = Object.assign(CONFIGURE, values);
-    return singular;
+
+    return chaining;
 }
 
 /**
@@ -274,7 +284,7 @@ export function addScript(src: string, async = true) {
  */
 export function parallel(callback: VoidPromiseCallback) {
     Lifecycle.parallelCallbacks[Lifecycle.parallelCallbacks.length] = callback;
-    return singular;
+    return chaining;
 }
 
 /**
@@ -286,7 +296,7 @@ export function parallel(callback: VoidPromiseCallback) {
  */
 export function series(callback: VoidPromiseCallback) {
     Lifecycle.seriesCallbacks[Lifecycle.seriesCallbacks.length] = callback;
-    return singular;
+    return chaining;
 }
 
 /**
@@ -300,7 +310,7 @@ export function ready(callback: ChangedElementCallback) {
         callback(new ChangedElements([document.body]));
     }
 
-    return singular;
+    return chaining;
 }
 
 /**
@@ -314,7 +324,7 @@ export function load(callback: ChangedElementCallback) {
         callback(new ChangedElements([document.body]));
     }
 
-    return singular;
+    return chaining;
 }
 
 /**
@@ -330,7 +340,7 @@ export function enter(callback: ChangedElementCallback) {
         callback(new ChangedElements([document.body]));
     }
 
-    return singular;
+    return chaining;
 }
 
 /**
@@ -341,13 +351,13 @@ export function exit(callback: Function) {
     const {exitCallbacks} = LIFECYCLES[CURRENT_SCRIPT_URL];
     exitCallbacks[exitCallbacks.length] = callback;
 
-    return singular;
+    return chaining;
 }
 
 export function unload(callback: Function) {
     Lifecycle.unloadCallbacks[Lifecycle.unloadCallbacks.length] = callback;
 
-    return singular;
+    return chaining;
 }
 
 /**
@@ -382,7 +392,7 @@ export function changed(changedElements: Element[] = [document.body]) {
         Lifecycle.loadCallbacks[current](changedElements_);
     }
 
-    return singular;
+    return chaining;
 }
 
 
@@ -701,7 +711,7 @@ function render$(page: Page): Promise<void | Element[]> {
     let current: number;
 
     if (!CONFIGURE.enableKeepStyles) {
-        const renderedStyleHrefs = Object.keys(RENDERED_STYLES);
+        const renderedStyleHrefs = KEYS(RENDERED_STYLES);
         current = renderedStyleHrefs.length;
         while (current-- > 0) {
             let href = renderedStyleHrefs[current];
