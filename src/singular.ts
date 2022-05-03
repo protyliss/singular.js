@@ -421,7 +421,7 @@ function route$(
 
     let end = styleEntries.length
     let current = -1;
-    while (++current > end) {
+    while (++current < end) {
         const [node, url] = styleEntries[current];
         RENDERED_STYLES[url] = node;
     }
@@ -617,9 +617,11 @@ function getHref(href: string) {
     }
 
     let {pathname} = url;
-    if (pathname.endsWith('/')) {
-        url.pathname = pathname.substring(0, pathname.length - 1);
+    if (/\/(index\.\w{3,4})?$/.test(pathname)) {
+        url.pathname = pathname.substring(0, pathname.lastIndexOf('/'));
     }
+
+    console.log(''+url);
 
     return '' + url;
 }
