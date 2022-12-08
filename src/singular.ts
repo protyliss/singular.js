@@ -1,54 +1,60 @@
 interface SingularConfigure {
-    /**
-     * Set Development Mode
-     * @description
-     *   Does not Reload Page after Occurred Error
-     * @default false
-     */
-    development: boolean;
-    /**
-     * Changeable Element Selector after Routed
-     * @default null
-     */
-    outletSelectors: undefined | null | string;
+	/**
+	 * Set Development Mode
+	 * @description
+	 *   Does not Reload Page after Occurred Error
+	 * @default false
+	 */
+	development: boolean;
+	/**
+	 * Changeable Element Selector after Routed
+	 * @default null
+	 */
+	outletSelectors: undefined | null | string;
 
-    /**
-     * Changeable Element Class Attribute after Routed
-     * @default null
-     * @description
-     *   Copy Class Attribute with Ignore outlet Option
-     */
-    classSelectors: undefined | null | string | string[];
+	/**
+	 * Changeable Element Class Attribute after Routed
+	 * @default null
+	 * @description
+	 *   Copy Class Attribute with Ignore outlet Option
+	 */
+	classSelectors: undefined | null | string | string[];
 
-    /**
-     * Does not Reload document.documentElement after Re-Routed
-     * @default false;
-     */
-    enableKeepHtml: boolean;
+	/**
+	 * Does not Reload document.documentElement after Re-Routed
+	 * @default false;
+	 */
+	enableKeepHtml: boolean;
 
-    /**
-     * Does not Remove & Reload CSS after Routed
-     * @default false;
-     */
-    enableKeepStyles: boolean;
+	/**
+	 * Does not Remove & Reload CSS after Routed
+	 * @default false;
+	 */
+	enableKeepStyles: boolean;
 
-    /**
-     * Does not Ignore Search String when Make Cache
-     * @default false
-     */
-    enableSearchString: boolean;
+	/**
+	 * Does not Ignore Search String when Make Cache
+	 * @default false
+	 */
+	enableSearchString: boolean;
 
-    /**
-     * Does not Ignore Hash String when Make Cache
-     * @default false
-     */
-    enableHashString: boolean;
+	/**
+	 * Does not Ignore Hash String when Make Cache
+	 * @default false
+	 */
+	enableHashString: boolean;
 
-    /**
-     * Disable Change Browser Title after Routed
-     * @default false
-     */
-    disableTitleChange: boolean
+	/**
+	 * Disable Set Document Title to Target URL before Load that like in Browser Process
+	 * @default false
+	 */
+	disableTitleReset: boolean;
+
+	/**
+	 * Disable Change Browser Title after Routed
+	 * @default false
+	 */
+	disableTitleChange: boolean
 }
 
 type VoidPromiseCallback = (...args: any) => Promise<void>;
@@ -57,151 +63,172 @@ type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElements: ChangedElements) => void;
 
-document.documentElement.style.visibility = 'hidden';
+const {documentElement}          = document
+documentElement.style.visibility = 'hidden';
 
 const {href: START_URL, origin: ORIGIN} = location;
-const {isArray: IS_ARRAY, from: FROM} = Array;
-const {keys: KEYS} = Object;
+const {isArray: IS_ARRAY, from: FROM}   = Array;
+const {keys: KEYS}                      = Object;
 
-const ESM = !document.currentScript;
+const ESM         = !document.currentScript;
+const _ROOT_INDEX = /^\/index\.\w{2,4}$/;
+const _INDEX      = /\/index\.\w{2,4}$/;
 
 let CONFIGURE: SingularConfigure = {
-    development: false,
-    outletSelectors: null,
-    classSelectors: null,
-    enableKeepHtml: false,
-    enableKeepStyles: false,
-    enableSearchString: false,
-    enableHashString: false,
-    disableTitleChange: false
+	development: false,
+	outletSelectors: null,
+	classSelectors: null,
+	enableKeepHtml: false,
+	enableKeepStyles: false,
+	enableSearchString: false,
+	enableHashString: false,
+	disableTitleReset: false,
+	disableTitleChange: false
 };
 
-let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
+let RENDERED_STYLES: Record<string, HTMLLinkElement>    = {};
 let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
-let LOADED = false
-let CURRENT_URL = START_URL;
-let CURRENT_SCRIPT_URL = START_URL;
+let LOADED                                              = false
+let CURRENT_URL                                         = getCurrentUrl(START_URL);
+let CURRENT_SCRIPT_URL                                  = getLifecycleUrl(START_URL);
 let ABORT_CONTROLLER: AbortController;
 
+function debug(...args: any[]) {
+	// @ts-ignore
+	return (debug = CONFIGURE.development ?
+			function (...args: any[]) {
+				console.debug.apply(null, ['[singular]', ...args]);
+			} :
+			function () {
+			}
+	)
+		// @ts-ignore
+		.apply(this, arguments);
+}
+
 class Page {
-    constructor(
-        public url: string,
-        public title: string,
-        public styles: string[] = [],
-        public scripts: string[] = [],
-        public classes: Record<string, string> | undefined = undefined,
-        public html: string = ''
-    ) {
-    }
+	constructor(
+		public url: string,
+		public title: string,
+		public styles: string[]                            = [],
+		public scripts: string[]                           = [],
+		public classes: Record<string, string> | undefined = undefined,
+		public html: string                                = ''
+	) {
+	}
 }
 
 class Lifecycle {
-    static seriesCallbacks: VoidPromiseCallback[] = [];
-    static parallelCallbacks: VoidPromiseCallback[] = [];
-    static readyCallbacks: ChangedElementCallback[] = [];
-    static loadCallbacks: ChangedElementCallback[] = [];
-    static unloadCallbacks: Function[] = [];
+	static seriesCallbacks: VoidPromiseCallback[]   = [];
+	static parallelCallbacks: VoidPromiseCallback[] = [];
+	static readyCallbacks: ChangedElementCallback[] = [];
+	static loadCallbacks: ChangedElementCallback[]  = [];
+	static unloadCallbacks: Function[]              = [];
 
-    enterCallbacks: ChangedElementCallback[] = [];
-    exitCallbacks: Function[] = [];
+	enterCallbacks: ChangedElementCallback[] = [];
+	exitCallbacks: Function[]                = [];
+
+	static get current() {
+		return LIFECYCLES[CURRENT_SCRIPT_URL] || (LIFECYCLES[CURRENT_SCRIPT_URL] = new Lifecycle());
+	}
 }
 
 class State {
-    singular: {
-        href: string
-    }
+	singular: {
+		href: string
+	}
 
-    constructor(href: string) {
-        this.singular = {
-            href
-        };
-    }
+	constructor(href: string) {
+		this.singular = {
+			href
+		};
+	}
 }
 
 class ChangedElements extends Array<Element> {
-    constructor(changedElements: Element[]) {
-        super(0);
-        this.push.apply(
-            this,
-            IS_ARRAY(changedElements) ?
-                changedElements :
-                [changedElements]
-        );
-    }
+	constructor(changedElements: Element[]) {
+		super(0);
+		this.push.apply(
+			this,
+			IS_ARRAY(changedElements) ?
+				changedElements :
+				[changedElements]
+		);
+	}
 
-    #getElements<E extends Element = Element>(methodName: keyof Element, selectors: keyof HTMLElementTagNameMap | string): E[] {
-        const list = [];
-        const end = this.length;
-        let current = -1;
-        while (++current < end) {
-            const nodes = this[current].querySelectorAll(selectors);
-            const nodeEnd = nodes.length;
-            let nodeCurrent = -1;
-            while (++nodeCurrent < nodeEnd) {
-                const node = nodes[nodeCurrent];
-                if (list.indexOf(node) === -1) {
-                    list[list.length] = node;
-                }
-            }
-        }
+	#getElements<E extends Element = Element>(methodName: keyof Element, selectors: keyof HTMLElementTagNameMap | string): E[] {
+		const list  = [];
+		const end   = this.length;
+		let current = -1;
+		while (++current < end) {
+			const nodes     = this[current].querySelectorAll(selectors);
+			const nodeEnd   = nodes.length;
+			let nodeCurrent = -1;
+			while (++nodeCurrent < nodeEnd) {
+				const node = nodes[nodeCurrent];
+				if (list.indexOf(node) === -1) {
+					list[list.length] = node;
+				}
+			}
+		}
 
-        return list as E[];
-    }
+		return list as E[];
+	}
 
-    getElementById(elementId: string) {
-        return document.getElementById(elementId);
-    }
+	getElementById(elementId: string) {
+		return document.getElementById(elementId);
+	}
 
-    getElementsByTagName<K extends keyof HTMLElementTagNameMap>(qualifiedName: K): HTMLElementTagNameMap[K][];
-    getElementsByTagName<K extends keyof SVGElementTagNameMap>(qualifiedName: K): SVGElementTagNameMap[K][];
-    getElementsByTagName<E extends Element = Element>(qualifiedName: string): E[] {
-        return this.#getElements('getElementsByTagName', qualifiedName);
-    }
+	getElementsByTagName<K extends keyof HTMLElementTagNameMap>(qualifiedName: K): HTMLElementTagNameMap[K][];
+	getElementsByTagName<K extends keyof SVGElementTagNameMap>(qualifiedName: K): SVGElementTagNameMap[K][];
+	getElementsByTagName<E extends Element = Element>(qualifiedName: string): E[] {
+		return this.#getElements('getElementsByTagName', qualifiedName);
+	}
 
-    getElementsByClassName(classNames: string) {
-        return this.#getElements('getElementsByClassName', classNames);
-    }
+	getElementsByClassName(classNames: string) {
+		return this.#getElements('getElementsByClassName', classNames);
+	}
 
-    querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K];
-    querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
-    querySelector<E extends Element = Element>(selectors: string): E | null {
-        const end = this.length;
-        let current = -1;
-        while (++current < end) {
-            const node = this[current].querySelector(selectors);
-            if (node) {
-                return node as E;
-            }
-        }
-        return null;
-    }
+	querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K];
+	querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
+	querySelector<E extends Element = Element>(selectors: string): E | null {
+		const end   = this.length;
+		let current = -1;
+		while (++current < end) {
+			const node = this[current].querySelector(selectors);
+			if (node) {
+				return node as E;
+			}
+		}
+		return null;
+	}
 
-    querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[] {
-        return this.#getElements('querySelectorAll', selectors);
-    }
+	querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[] {
+		return this.#getElements('querySelectorAll', selectors);
+	}
 }
 
 const PAGES: Record<string, Page> = {
-    [START_URL]: new Page(
-        START_URL,
-        document.title
-    )
+	[CURRENT_URL]: new Page(
+		START_URL,
+		document.title
+	)
 };
 
 const LIFECYCLES: Record<string, Lifecycle> = {
-    [START_URL]: new Lifecycle
+	[CURRENT_SCRIPT_URL]: new Lifecycle
 };
 
-export const chaining = {
-    configure,
-    series,
-    parallel,
-    ready,
-    load,
-    enter,
-    exit,
-    unload,
-    changed
+const CHAIN = {
+	configure,
+	series,
+	parallel,
+	ready,
+	load,
+	enter,
+	exit,
+	unload,
+	changed
 };
 
 /**
@@ -209,23 +236,23 @@ export const chaining = {
  * @param values
  */
 export function configure(values: Partial<SingularConfigure>) {
-    let {classSelectors} = values;
+	let {classSelectors} = values;
 
-    if (classSelectors) {
-        if (!IS_ARRAY(classSelectors)) {
-            classSelectors = [classSelectors];
-        }
-        let current = classSelectors.length;
-        const dividedClassSelectors = [];
-        while (current-- > 0) {
-            dividedClassSelectors.push(...classSelectors[current].split(','));
-        }
-        values.classSelectors = dividedClassSelectors;
-    }
+	if (classSelectors) {
+		if (!IS_ARRAY(classSelectors)) {
+			classSelectors = [classSelectors];
+		}
+		let current                 = classSelectors.length;
+		const dividedClassSelectors = [];
+		while (current-- > 0) {
+			dividedClassSelectors.push(...classSelectors[current].split(','));
+		}
+		values.classSelectors = dividedClassSelectors;
+	}
 
-    CONFIGURE = Object.assign(CONFIGURE, values);
+	CONFIGURE = Object.assign(CONFIGURE, values);
 
-    return chaining;
+	return CHAIN;
 }
 
 /**
@@ -233,20 +260,20 @@ export function configure(values: Partial<SingularConfigure>) {
  * @param href
  */
 export function addStyle(href: string) {
-    const link = tag('link');
+	const link = tag('link');
 
-    return {
-        link,
-        promise: new Promise<void>((resolve) => {
-            const resolver = () => resolve();
-            link.onload = resolver;
-            link.onerror = resolver;
-            link.rel = 'stylesheet';
-            document.head.append(link);
+	return {
+		link,
+		promise: new Promise<void>((resolve) => {
+			const resolver = () => resolve();
+			link.onload    = resolver;
+			link.onerror   = resolver;
+			link.rel       = 'stylesheet';
+			document.head.append(link);
 
-            link.href = href;
-        })
-    }
+			link.href = href;
+		})
+	}
 }
 
 /**
@@ -255,25 +282,25 @@ export function addStyle(href: string) {
  * @param async
  */
 export function addScript(src: string, async = true) {
-    const script = tag('script');
+	const script = tag('script');
 
-    return {
-        script,
-        promise: new Promise<void>((resolve) => {
-            const resolver = () => resolve();
+	return {
+		script,
+		promise: new Promise<void>((resolve) => {
+			const resolver = () => resolve();
 
-            if (ESM) {
-                script.type = 'module';
-            }
+			if (ESM) {
+				script.type = 'module';
+			}
 
-            script.onload = resolver;
-            script.onerror = resolver;
-            script.async = async;
-            document.head.append(script);
+			script.onload  = resolver;
+			script.onerror = resolver;
+			script.async   = async;
+			document.head.append(script);
 
-            script.src = src;
-        })
-    }
+			script.src = src;
+		})
+	}
 }
 
 /**
@@ -283,8 +310,8 @@ export function addScript(src: string, async = true) {
  * @param callback
  */
 export function parallel(callback: VoidPromiseCallback) {
-    Lifecycle.parallelCallbacks[Lifecycle.parallelCallbacks.length] = callback;
-    return chaining;
+	Lifecycle.parallelCallbacks[Lifecycle.parallelCallbacks.length] = callback;
+	return CHAIN;
 }
 
 /**
@@ -295,8 +322,8 @@ export function parallel(callback: VoidPromiseCallback) {
  * @param callback
  */
 export function series(callback: VoidPromiseCallback) {
-    Lifecycle.seriesCallbacks[Lifecycle.seriesCallbacks.length] = callback;
-    return chaining;
+	Lifecycle.seriesCallbacks[Lifecycle.seriesCallbacks.length] = callback;
+	return CHAIN;
 }
 
 /**
@@ -304,13 +331,13 @@ export function series(callback: VoidPromiseCallback) {
  * @param callback
  */
 export function ready(callback: ChangedElementCallback) {
-    Lifecycle.readyCallbacks[Lifecycle.readyCallbacks.length] = callback;
+	Lifecycle.readyCallbacks[Lifecycle.readyCallbacks.length] = callback;
 
-    if (LOADED) {
-        callback(new ChangedElements([document.body]));
-    }
+	if (LOADED) {
+		callback(new ChangedElements([document.body]));
+	}
 
-    return chaining;
+	return CHAIN;
 }
 
 /**
@@ -318,13 +345,13 @@ export function ready(callback: ChangedElementCallback) {
  * @param callback
  */
 export function load(callback: ChangedElementCallback) {
-    Lifecycle.loadCallbacks[Lifecycle.loadCallbacks.length] = callback;
+	Lifecycle.loadCallbacks[Lifecycle.loadCallbacks.length] = callback;
 
-    if (LOADED) {
-        callback(new ChangedElements([document.body]));
-    }
+	if (LOADED) {
+		callback(new ChangedElements([document.body]));
+	}
 
-    return chaining;
+	return CHAIN;
 }
 
 /**
@@ -333,14 +360,14 @@ export function load(callback: ChangedElementCallback) {
  * @param callback
  */
 export function enter(callback: ChangedElementCallback) {
-    const {enterCallbacks} = LIFECYCLES[CURRENT_SCRIPT_URL];
-    enterCallbacks[enterCallbacks.length] = callback;
+	const {enterCallbacks}                = Lifecycle.current;
+	enterCallbacks[enterCallbacks.length] = callback;
 
-    if (LOADED) {
-        callback(new ChangedElements([document.body]));
-    }
+	if (LOADED) {
+		callback(new ChangedElements([document.body]));
+	}
 
-    return chaining;
+	return CHAIN;
 }
 
 /**
@@ -348,16 +375,16 @@ export function enter(callback: ChangedElementCallback) {
  * @param callback
  */
 export function exit(callback: Function) {
-    const {exitCallbacks} = LIFECYCLES[CURRENT_SCRIPT_URL];
-    exitCallbacks[exitCallbacks.length] = callback;
+	const {exitCallbacks}               = Lifecycle.current;
+	exitCallbacks[exitCallbacks.length] = callback;
 
-    return chaining;
+	return CHAIN;
 }
 
 export function unload(callback: Function) {
-    Lifecycle.unloadCallbacks[Lifecycle.unloadCallbacks.length] = callback;
+	Lifecycle.unloadCallbacks[Lifecycle.unloadCallbacks.length] = callback;
 
-    return chaining;
+	return CHAIN;
 }
 
 /**
@@ -366,16 +393,16 @@ export function unload(callback: Function) {
  * @param outletSelectors
  */
 export function route(requestUrl: string, outletSelectors?: string) {
-    try {
-        route$(requestUrl, outletSelectors)
-    } catch (reason) {
-        console.warn(reason);
+	try {
+		route$(requestUrl, outletSelectors)
+	} catch (reason) {
+		console.warn(reason);
 
-        if (!CONFIGURE.development) {
-            location.replace(requestUrl);
-        }
-        return null;
-    }
+		if (!CONFIGURE.development) {
+			location.replace(requestUrl);
+		}
+		return null;
+	}
 }
 
 /**
@@ -383,260 +410,262 @@ export function route(requestUrl: string, outletSelectors?: string) {
  * @param changedElements
  */
 export function changed(changedElements: Element[] = [document.body]) {
-    const changedElements_ = new ChangedElements(changedElements);
+	const changedElements_ = new ChangedElements(changedElements);
 
-    const end = Lifecycle.loadCallbacks.length;
-    let current = -1;
+	const end   = Lifecycle.loadCallbacks.length;
+	let current = -1;
 
-    while (++current < end) {
-        Lifecycle.loadCallbacks[current](changedElements_);
-    }
+	while (++current < end) {
+		Lifecycle.loadCallbacks[current](changedElements_);
+	}
 
-    return chaining;
+	return CHAIN;
 }
 
 
 function tag<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagNameMap[K] {
-    return document.createElement(tagName);
+	return document.createElement(tagName);
 }
 
 function fragmentHtml(html: string) {
-    const fragment = document.createDocumentFragment();
-    const fragmentHtml = tag('html');
-    fragment.appendChild(fragmentHtml);
-    fragmentHtml.innerHTML = html;
-    return fragmentHtml;
+	const fragment     = document.createDocumentFragment();
+	const fragmentHtml = tag('html');
+	fragment.appendChild(fragmentHtml);
+	fragmentHtml.innerHTML = html;
+	return fragmentHtml;
 }
 
 
 function route$(
-    this: any,
-    requestUrl: string,
-    outletSelectors: undefined | null | string = undefined,
-    push = true
+	this: any,
+	requestUrl: string,
+	outletSelectors: undefined | null | string = undefined,
+	push                                       = true
 ): Promise<Element[]> {
 
-    const {entries: styleEntries, urls: styleUrls} = getStyles(document.documentElement);
-    const {entries: scriptEntries, urls: scriptUrls} = getScripts(document.documentElement);
+	const {entries: styleEntries, urls: styleUrls}   = getStyles(documentElement);
+	const {entries: scriptEntries, urls: scriptUrls} = getScripts(documentElement);
 
-    let end = styleEntries.length
-    let current = -1;
-    while (++current < end) {
-        const [node, url] = styleEntries[current];
-        RENDERED_STYLES[url] = node;
-    }
+	let end     = styleEntries.length
+	let current = -1;
+	while (++current < end) {
+		const [node, url]    = styleEntries[current];
+		RENDERED_STYLES[url] = node;
+	}
 
-    end = scriptEntries.length
-    current = -1;
-    while (++current < end) {
-        const [node, url] = scriptEntries[current];
-        RENDERED_SCRIPTS[url] = node;
+	end     = scriptEntries.length
+	current = -1;
+	while (++current < end) {
+		const [node, url]     = scriptEntries[current];
+		RENDERED_SCRIPTS[url] = node;
 
-        document.head.append(node);
-    }
+		document.head.append(node);
+	}
 
-    const page = PAGES[CURRENT_URL];
-    page.url = START_URL;
-    page.title = document.title;
-    page.styles = styleUrls;
-    page.scripts = scriptUrls;
-    page.classes = getClassNameMap(document);
+	const page   = PAGES[CURRENT_URL];
+	page.url     = START_URL;
+	page.title   = document.title;
+	page.styles  = styleUrls;
+	page.scripts = scriptUrls;
+	page.classes = getClassNameMap(document);
 
-    const {links} = document;
-    current = links.length;
-    while (current-- > 0) {
-        const anchor = links[current];
-        const href = anchor.getAttribute('href');
-        if (!href || !(href.startsWith('./') || href.startsWith('../'))) {
-            continue;
-        }
+	const {links} = document;
+	current       = links.length;
+	while (current-- > 0) {
+		const anchor = links[current];
+		const href   = anchor.getAttribute('href');
+		if (!href || !(href.startsWith('./') || href.startsWith('../'))) {
+			continue;
+		}
 
-        anchor.setAttribute('href', anchor.href);
-    }
+		anchor.setAttribute('href', anchor.href);
+	}
 
-    // @ts-ignore
-    return (route$ = routeAfterFirstRouted).apply(this, arguments as any);
+	// @ts-ignore
+	return (route$ = routeAfterFirstRouted).apply(this, arguments as any);
 
-    function routeAfterFirstRouted(
-        requestUrl: string,
-        outletSelectors: undefined | null | string = undefined,
-        push = true
-    ) {
-        // console.debug(`[singular] ${href}`);
+	function routeAfterFirstRouted(
+		requestUrl: string,
+		outletSelectors: undefined | null | string = undefined,
+		push                                       = true
+	) {
+		debug(requestUrl);
 
-        if (LOADED) {
-            const lifecycle = LIFECYCLES[CURRENT_SCRIPT_URL]
-            const callbacks = lifecycle.exitCallbacks.concat(Lifecycle.unloadCallbacks);
-            const end = callbacks.length;
-            let current = -1;
 
-            try {
-                while (++current < end) {
-                    callbacks[current]();
-                }
-            } catch (reason) {
-                console.warn(reason);
-            }
-        } else if (ABORT_CONTROLLER) {
-            ABORT_CONTROLLER.abort();
-        }
+		if (LOADED) {
+			const lifecycle = Lifecycle.current;
+			const callbacks = lifecycle.exitCallbacks.concat(Lifecycle.unloadCallbacks);
+			const end       = callbacks.length;
+			let current     = -1;
 
-        window.scrollTo(0, 0);
-        // document.title = requestUrl.substring(requestUrl.indexOf(':') + 3);
+			try {
+				while (++current < end) {
+					callbacks[current]();
+				}
+			} catch (reason) {
+				console.warn(reason);
+			}
+		} else if (ABORT_CONTROLLER) {
+			ABORT_CONTROLLER.abort();
+		}
 
-        LOADED = false;
-        CURRENT_URL = getHref(requestUrl);
-        CURRENT_SCRIPT_URL = getScriptUrl(requestUrl);
+		window.scrollTo(0, 0);
 
-        const page = PAGES[CURRENT_URL];
+		if (!CONFIGURE.disableTitleReset) {
+			document.title = requestUrl.substring(requestUrl.indexOf(':') + 3);
+		}
 
-        if (page) {
-            if (CONFIGURE.enableKeepHtml) {
-                push && pushState(getFixedUrl(page.url, requestUrl));
-                return render$(page);
-            }
-            // noinspection JSUnusedLocalSymbols
-            return request(requestUrl)
-                .then(([responseUrl, html]) => {
-                    page.html = html;
-                    push && pushState(responseUrl);
-                    return render$(page);
-                });
-        }
+		LOADED             = false;
+		CURRENT_URL        = getCurrentUrl(requestUrl);
+		CURRENT_SCRIPT_URL = getLifecycleUrl(requestUrl);
 
-        return request(requestUrl)
-            .then(([responseUrl, html]) => {
-                push && pushState(responseUrl);
-                return parse$(requestUrl, responseUrl, html);
-            });
-    }
+		const page = PAGES[CURRENT_URL];
 
-    function request(href: string) {
-        ABORT_CONTROLLER = new AbortController();
+		if (page) {
+			if (CONFIGURE.enableKeepHtml) {
+				push && pushState(getFixedUrl(page.url, requestUrl));
+				return render$(page);
+			}
+			// noinspection JSUnusedLocalSymbols
+			return request(requestUrl)
+				.then(([responseUrl, html]) => {
+					page.html = html;
+					push && pushState(responseUrl);
+					return render$(page);
+				});
+		}
 
-        return fetch(href, {
-            signal: ABORT_CONTROLLER.signal
-        })
-            .then(responseText)
-            .catch(catchError) as Promise<[string, string]>;
-    }
+		return request(requestUrl)
+			.then(([responseUrl, html]) => {
+				push && pushState(responseUrl);
+				return parse$(requestUrl, responseUrl, html);
+			});
+	}
 
-    function responseText(response: Response) {
-        const {url} = response;
-        return Promise.all([
-            Promise.resolve(url),
-            response.text()
-        ]);
-    }
+	function request(href: string) {
+		ABORT_CONTROLLER = new AbortController();
 
-    function catchError(reason: Error) {
-        console.warn(reason);
-    }
+		return fetch(href, {
+			signal: ABORT_CONTROLLER.signal
+		})
+			.then(responseText)
+			.catch(catchError) as Promise<[string, string]>;
+	}
 
-    function pushState(responseUrl: string) {
-        history.pushState(new State(responseUrl), responseUrl, responseUrl);
-    }
+	function responseText(response: Response) {
+		const {url} = response;
+		return Promise.all([
+			Promise.resolve(url),
+			response.text()
+		]);
+	}
 
-    function getFixedUrl(responseUrl: string, requestUrl: string): string {
-        const parsedResponseUrl = new URL(responseUrl);
-        const parsedRequestUrl = new URL(requestUrl);
+	function catchError(reason: Error) {
+		console.warn(reason);
+	}
 
-        parsedResponseUrl.search = parsedRequestUrl.search;
-        parsedResponseUrl.hash = parsedRequestUrl.hash;
+	function pushState(responseUrl: string) {
+		history.pushState(new State(responseUrl), responseUrl, responseUrl);
+	}
 
-        return '' + parsedRequestUrl;
-    }
+	function getFixedUrl(responseUrl: string, requestUrl: string): string {
+		const parsedResponseUrl = new URL(responseUrl);
+		const parsedRequestUrl  = new URL(requestUrl);
+
+		parsedResponseUrl.search = parsedRequestUrl.search;
+		parsedResponseUrl.hash   = parsedRequestUrl.hash;
+
+		return '' + parsedRequestUrl;
+	}
 }
 
 function getClassNameMap(target: Document | HTMLElement) {
-    const {classSelectors} = CONFIGURE;
-    if (classSelectors) {
-        const classes: Record<string, string> = {};
-        let current = classSelectors.length
-        while (current-- > 0) {
-            const selector = classSelectors[current];
-            classes[selector] = (target.querySelector(selector) || {}).className || '';
-        }
-        return classes;
-    }
-    return undefined;
+	const {classSelectors} = CONFIGURE;
+	if (classSelectors) {
+		const classes: Record<string, string> = {};
+		let current                           = classSelectors.length
+		while (current-- > 0) {
+			const selector    = classSelectors[current];
+			classes[selector] = (target.querySelector(selector) || {}).className || '';
+		}
+		return classes;
+	}
+	return undefined;
 }
 
 
 function parse$(requestUrl: string, responseUrl: string, rawHtml: string): Promise<void | Element[]> {
-    const fragment = fragmentHtml(rawHtml)
-    const title = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
+	const fragment = fragmentHtml(rawHtml)
+	const title    = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
 
 
-    const {urls: styleUrls} = getStyles(fragment);
-    const {entries: scriptEntries, urls: scriptUrls} = getScripts(fragment);
+	const {urls: styleUrls}                          = getStyles(fragment);
+	const {entries: scriptEntries, urls: scriptUrls} = getScripts(fragment);
 
-    let current = scriptEntries.length;
-    while (current-- > 0) {
-        const [node] = scriptEntries[current];
-        if (node?.parentNode) {
-            node.parentNode.removeChild(node);
-        }
-    }
+	let current = scriptEntries.length;
+	while (current-- > 0) {
+		const [node] = scriptEntries[current];
+		if (node?.parentNode) {
+			node.parentNode.removeChild(node);
+		}
+	}
 
-    let html = fragment.outerHTML;
+	let html = fragment.outerHTML;
 
-    const page = new Page(
-            responseUrl,
-            title,
-            styleUrls,
-            scriptUrls,
-            getClassNameMap(fragment),
-            html
-        )
-    ;
+	const page = new Page(
+		responseUrl,
+		title,
+		styleUrls,
+		scriptUrls,
+		getClassNameMap(fragment),
+		html
+	);
 
-    const url = new URL(CURRENT_URL);
-    if (url.pathname.endsWith('/')) {
-        url.pathname = url.pathname.substring(0, url.pathname.length - 1);
-    }
-    PAGES['' + url] = page;
-    const scriptUrl = getScriptUrl('' + url);
-
-    if (!LIFECYCLES[scriptUrl]) {
-        LIFECYCLES[scriptUrl] = new Lifecycle();
-    }
-
-    return render$(page);
+	const url = new URL(CURRENT_URL);
+	if (url.pathname.endsWith('/')) {
+		url.pathname = url.pathname.substring(0, url.pathname.length - 1);
+	}
+	PAGES['' + url] = page;
+	return render$(page);
 }
 
-function getHref(href: string) {
-    const url = new URL(href);
-
-    if (!CONFIGURE.enableHashString) {
-        url.hash = '';
-    }
-
-    if (!CONFIGURE.enableSearchString) {
-        url.search = '';
-    }
-
-    let {pathname} = url;
-    if (/\/(index\.\w{3,4})?$/.test(pathname)) {
-        url.pathname = pathname.substring(0, pathname.lastIndexOf('/'));
-    }
-
-    console.log(''+url);
-
-    return '' + url;
+function getUrl(url: string) {
+	if (url.endsWith('/') || _INDEX.test(url)) {
+		return url.substring(0, url.lastIndexOf('/'));
+	}
+	return url;
 }
 
-function getScriptUrl(href: string) {
-    const url = new URL(href);
-    url.hash = '';
-    url.search = '';
+function getCurrentUrl(href: string) {
+	const url = new URL(href);
 
-    let {pathname} = url;
-    if (pathname.endsWith('/')) {
-        url.pathname = pathname.substring(0, pathname.length - 1);
-    }
+	if (!CONFIGURE.enableHashString) {
+		url.hash = '';
+	}
 
-    return '' + url;
+	if (!CONFIGURE.enableSearchString) {
+		url.search = '';
+	}
+
+	url.pathname = getUrl(url.pathname)
+
+	return '' + url;
+}
+
+function getLifecycleUrl(href: string) {
+	const url  = new URL(href);
+	url.hash   = '';
+	url.search = '';
+
+	let {pathname} = url;
+
+	if (_ROOT_INDEX.test(pathname)) {
+		url.pathname = '';
+	} else if (pathname.endsWith('/')) {
+		url.pathname = pathname.substring(0, pathname.length - 1);
+	}
+
+	return '' + url;
 }
 
 /**
@@ -644,317 +673,433 @@ function getScriptUrl(href: string) {
  * @param page
  */
 function render$(page: Page): Promise<void | Element[]> {
-    const {url, title, styles, scripts, classes, html} = page;
-    const {outletSelectors, classSelectors} = CONFIGURE;
+	const {url, title, styles, scripts, classes, html} = page;
+	const {outletSelectors, classSelectors}            = CONFIGURE;
 
-    if (!CONFIGURE.disableTitleChange) {
-        document.title = title || url.substring(url.indexOf('://') + 3);
-    }
+	if (!CONFIGURE.disableTitleChange) {
+		document.title = title || url.substring(url.indexOf('://') + 3);
+	}
 
-    if (classSelectors && classes) {
-        let current = classSelectors.length;
-        while (current-- > 0) {
-            const selector = classSelectors[current];
-            const target = document.documentElement.querySelector(selector);
-            if (target) {
-                target.className = classes[selector];
-            }
-        }
-    }
+	if (classSelectors && classes) {
+		let current = classSelectors.length;
+		while (current-- > 0) {
+			const selector = classSelectors[current];
+			const target   = documentElement.querySelector(selector);
+			if (target) {
+				target.className = classes[selector];
+			}
+		}
+	}
 
-    const fragment = fragmentHtml(html);
-    let changeAll = false;
-    let changedElements: Element[];
-    if (outletSelectors) {
-        const currentElements = document.querySelectorAll(outletSelectors);
-        changedElements = Array.from(fragment.querySelectorAll(outletSelectors));
+	const fragment = fragmentHtml(html);
+	let changeAll  = false;
+	let changedElements: Element[];
+	if (outletSelectors) {
+		const currentElements = document.querySelectorAll(outletSelectors);
+		changedElements       = Array.from(fragment.querySelectorAll(outletSelectors));
 
 
-        if (changedElements.length === currentElements.length) {
+		if (changedElements.length === currentElements.length) {
 
-            let current = changedElements.length;
-            while (current-- > 0) {
-                const fragmentElement = changedElements[current];
-                const currentElement = currentElements[current];
+			let current = changedElements.length;
+			while (current-- > 0) {
+				const fragmentElement = changedElements[current];
+				const currentElement  = currentElements[current];
 
-                if (fragmentElement.tagName !== currentElement.tagName) {
-                    changeAll = true;
-                    break;
-                }
+				if (fragmentElement.tagName !== currentElement.tagName) {
+					changeAll = true;
+					break;
+				}
 
-            }
+			}
 
-            if (!changeAll) {
-                current = changedElements.length;
-                while (current-- > 0) {
-                    const from = changedElements[current];
-                    const to = currentElements[current];
-                    (to.parentNode as HTMLElement).replaceChild(from, to);
-                }
-            }
-        } else {
-            changeAll = true;
-        }
-    } else {
-        changeAll = true;
-    }
+			if (!changeAll) {
+				current = changedElements.length;
+				while (current-- > 0) {
+					const from = changedElements[current];
+					const to   = currentElements[current];
+					(to.parentNode as HTMLElement).replaceChild(from, to);
+				}
+			}
+		} else {
+			changeAll = true;
+		}
+	} else {
+		changeAll = true;
+	}
 
-    if (changeAll) {
-        document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
-        changedElements = [document.body];
-    }
+	if (changeAll) {
+		document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
+		changedElements         = [document.body];
+	}
 
-    fragment.innerHTML = '';
+	fragment.innerHTML = '';
 
-    const elements = [];
-    const importPromises = [Promise.resolve()];
-    const removeStyles: HTMLLinkElement[] = [];
-    let end: number;
-    let current: number;
+	const elements                        = [];
+	const importPromises                  = [Promise.resolve()];
+	const removeStyles: HTMLLinkElement[] = [];
+	let end: number;
+	let current: number;
 
-    if (!CONFIGURE.enableKeepStyles) {
-        const renderedStyleHrefs = KEYS(RENDERED_STYLES);
-        current = renderedStyleHrefs.length;
-        while (current-- > 0) {
-            let href = renderedStyleHrefs[current];
-            if (styles.indexOf(href) > -1) {
-                continue;
-            }
-            // RENDERED_STYLES[href].disabled = true;
-            removeStyles[removeStyles.length] = RENDERED_STYLES[href];
-            delete RENDERED_STYLES[href]
-        }
-    }
+	if (!CONFIGURE.enableKeepStyles) {
+		const renderedStyleHrefs = KEYS(RENDERED_STYLES);
+		current                  = renderedStyleHrefs.length;
+		while (current-- > 0) {
+			let href = renderedStyleHrefs[current];
+			if (styles.indexOf(href) > -1) {
+				continue;
+			}
+			// RENDERED_STYLES[href].disabled = true;
+			removeStyles[removeStyles.length] = RENDERED_STYLES[href];
+			delete RENDERED_STYLES[href]
+		}
+	}
 
-    // add external stylesheet
-    end = styles.length;
-    current = -1;
-    while (++current < end) {
-        const href = styles[current];
-        if (RENDERED_STYLES[href]) {
-            //     RENDERED_STYLES[href].disabled = false;
-            continue;
-        }
-        const {link, promise} = addStyle(href);
-        RENDERED_STYLES[href] = link;
-        importPromises[importPromises.length] = promise;
-        elements[elements.length] = link;
-    }
+	// add external stylesheet
+	end     = styles.length;
+	current = -1;
+	while (++current < end) {
+		const href = styles[current];
+		if (RENDERED_STYLES[href]) {
+			//     RENDERED_STYLES[href].disabled = false;
+			continue;
+		}
+		const {link, promise}                 = addStyle(href);
+		RENDERED_STYLES[href]                 = link;
+		importPromises[importPromises.length] = promise;
+		elements[elements.length]             = link;
+	}
 
-    // add external script
-    end = scripts.length;
-    current = -1;
-    while (++current < end) {
-        const src = scripts[current];
-        if (RENDERED_SCRIPTS[src]?.parentNode) {
-            // console.log(RENDERED_SCRIPTS[src], RENDERED_SCRIPTS[src].parentNode);
-            continue;
-        }
-        const {script, promise} = addScript(src);
-        RENDERED_SCRIPTS[src] = script;
-        importPromises[importPromises.length] = promise;
-        elements[elements.length] = script;
-    }
+	// add external script
+	end     = scripts.length;
+	current = -1;
+	while (++current < end) {
+		const src = scripts[current];
+		if (RENDERED_SCRIPTS[src]?.parentNode) {
+			// console.log(RENDERED_SCRIPTS[src], RENDERED_SCRIPTS[src].parentNode);
+			continue;
+		}
+		const {script, promise}               = addScript(src);
+		RENDERED_SCRIPTS[src]                 = script;
+		importPromises[importPromises.length] = promise;
+		elements[elements.length]             = script;
+	}
 
-    if (elements.length) {
-        document.head.append(...elements);
-    }
+	if (elements.length) {
+		document.head.append(...elements);
+	}
 
-    return Promise.all(importPromises)
-        .then(() => {
-            let current = removeStyles.length;
-            while (current-- > 0) {
-                const link = removeStyles[current];
-                if (link && link.parentNode) {
-                    link.parentNode.removeChild(link);
-                }
-            }
+	return Promise.all(importPromises)
+		.then(() => {
+			let current = removeStyles.length;
+			while (current-- > 0) {
+				const link = removeStyles[current];
+				if (link && link.parentNode) {
+					link.parentNode.removeChild(link);
+				}
+			}
 
-            return onLoad$(changedElements);
-        });
+			return onLoad$(changedElements);
+		});
 }
 
 function getResources<T extends HTMLElement>(parentElement: HTMLElement, selector: string, attributeName: string) {
-    const entries: Array<[T, string]> = [];
-    const urls: string[] = [];
-    const nodes = FROM(parentElement.querySelectorAll(selector)) as Children<T>;
-    const end = nodes.length;
-    let current = -1;
-    while (++current < end) {
-        const node = nodes[current];
+	const entries: Array<[T, string]> = [];
+	const urls: string[]              = [];
+	const nodes                       = FROM(parentElement.querySelectorAll(selector)) as Children<T>;
+	const end                         = nodes.length;
+	let current                       = -1;
+	while (++current < end) {
+		const node = nodes[current];
 
-        if (!node.getAttribute(attributeName) || !(node as any)[attributeName].startsWith(ORIGIN)) {
-            continue;
-        }
+		if (!node.getAttribute(attributeName) || !(node as any)[attributeName].startsWith(ORIGIN)) {
+			continue;
+		}
 
-        const value = getFixedUrl(node, attributeName)
+		const value = getFixedUrl(node, attributeName)
 
-        entries[entries.length] = [node, value];
-        urls[urls.length] = value;
+		entries[entries.length] = [node, value];
+		urls[urls.length]       = value;
 
-    }
-    return {entries, urls};
+	}
+	return {entries, urls};
 }
 
 function getStyles(parentElement: HTMLElement) {
-    return getResources<HTMLLinkElement>(parentElement, 'link[rel=stylesheet]', 'href');
+	return getResources<HTMLLinkElement>(parentElement, 'link[rel=stylesheet]', 'href');
 }
 
 function getScripts(parentElement: HTMLElement) {
-    return getResources<HTMLScriptElement>(parentElement, 'script[src]', 'src');
+	return getResources<HTMLScriptElement>(parentElement, 'script[src]', 'src');
 }
 
 function getFixedUrl(node: HTMLElement, attribute: string) {
-    return '' + (new URL(node.getAttribute(attribute) as string, location.href));
+	return '' + (new URL(node.getAttribute(attribute) as string, location.href));
 }
 
 function onLoad$(changedElements: Element[]): Promise<void | Element[]> {
-    // console.debug('[singular] before load');
+	// console.debug('before load');
 
-    const end = Lifecycle.seriesCallbacks.length;
-    let current = -1;
+	const end   = Lifecycle.seriesCallbacks.length;
+	let current = -1;
 
-    let series = Promise.resolve();
-    while (++current < end) {
-        const callback = Lifecycle.seriesCallbacks[current];
-        series = series.then(() => callback());
-    }
+	let series = Promise.resolve();
+	while (++current < end) {
+		const callback = Lifecycle.seriesCallbacks[current];
+		series         = series.then(() => callback());
+	}
 
-    const prepares = [series];
-    current = Lifecycle.parallelCallbacks.length;
-    while (current-- > 0) {
-        prepares[prepares.length] = Lifecycle.parallelCallbacks[current]();
-    }
+	const prepares = [series];
+	current        = Lifecycle.parallelCallbacks.length;
+	while (current-- > 0) {
+		prepares[prepares.length] = Lifecycle.parallelCallbacks[current]();
+	}
 
-    Lifecycle.seriesCallbacks = [];
-    Lifecycle.parallelCallbacks = [];
+	Lifecycle.seriesCallbacks   = [];
+	Lifecycle.parallelCallbacks = [];
 
-    return Promise.all(prepares)
-        .then(() => {
-            return onLoading$(changedElements)
-        })
-        .catch(catchReload);
+	return Promise.all(prepares)
+		.then(() => {
+			return onLoading$(changedElements)
+		})
+		.catch(catchReload);
 }
 
 function onLoading$(changedElements: Element[]) {
-    // console.debug('[singular] after load');
-    document.documentElement.style.visibility = 'inherit';
+	// console.debug('after load');
+	documentElement.style.visibility = 'inherit';
 
-    try {
-        onLoaded(new ChangedElements(changedElements));
-    } catch (reason) {
-        console.warn(reason)
-    }
+	try {
+		onLoaded(new ChangedElements(changedElements));
+	} catch (reason) {
+		console.warn(reason)
+	}
 
-    return changedElements;
+	return changedElements;
 }
 
 function catchReload(reason: Error) {
-    console.warn(reason);
-    if (!CONFIGURE.development) {
-        location.reload();
-    }
+	console.warn(reason);
+	if (!CONFIGURE.development) {
+		location.reload();
+	}
 }
 
 function onLoaded(changedElements: ChangedElements) {
-    // console.debug('[singular] Loaded');
-    LOADED = true;
+	// console.debug('Loaded');
+	LOADED = true;
 
-    const lifecycle = LIFECYCLES[CURRENT_SCRIPT_URL];
+	const lifecycle = Lifecycle.current;
 
-    const callbacks = [
-        ...Lifecycle.readyCallbacks.splice(0, Lifecycle.readyCallbacks.length),
-        ...Lifecycle.loadCallbacks,
-        ...lifecycle.enterCallbacks
-    ];
+	const callbacks = [
+		...Lifecycle.readyCallbacks.splice(0, Lifecycle.readyCallbacks.length),
+		...Lifecycle.loadCallbacks,
+		...lifecycle.enterCallbacks
+	];
 
-    const end = callbacks.length;
-    let current = -1;
-    while (++current < end) {
-        callbacks[current](changedElements);
-    }
+	const end   = callbacks.length;
+	let current = -1;
+	while (++current < end) {
+		callbacks[current](changedElements);
+	}
 }
 
-
 addEventListener(
-    'click',
-    function singularOnClick(event) {
-        let node = event.target as SingularAnchor;
+	'click',
+	function singularOnClick(event) {
+		let node = event.target as SingularAnchor;
 
-        switch (node.tagName) {
-            case 'BODY':
-                return false;
-            case 'A':
-                break;
-            default:
-                if (node._singularAnchor === false) {
-                    return true;
-                }
+		switch (node.tagName) {
+			case 'BODY':
+				return false;
+			case 'A':
+				break;
+			default:
+				if (node._singularAnchor === false) {
+					return true;
+				}
 
-                const anchor = node.closest('a') as SingularAnchor;
-                if (!anchor || !anchor.href) {
-                    node._singularAnchor = false;
-                    return true;
-                }
-                node = anchor;
-        }
+				const anchor = node.closest('a') as SingularAnchor;
+				if (!anchor || !anchor.href) {
+					node._singularAnchor = false;
+					return true;
+				}
+				node = anchor;
+		}
 
-        const {href} = node;
-        const rawHref = node.getAttribute('href');
+		const {href}  = node;
+		const rawHref = node.getAttribute('href');
 
-        if (node.target
-            || node.download
-            || !href.startsWith(ORIGIN)
-            || (rawHref && rawHref.startsWith('#'))
-        ) {
-            node._singularAnchor = false;
-            return true;
-        }
+		if (node.target
+			|| node.download
+			|| !href.startsWith(ORIGIN)
+			|| (rawHref && rawHref.startsWith('#'))
+		) {
+			node._singularAnchor = false;
+			return true;
+		}
 
-        node._singularAnchor = node;
+		node._singularAnchor = node;
 
-        event.stopPropagation();
-        event.preventDefault();
+		event.stopPropagation();
+		event.preventDefault();
 
-        route(href, node.dataset?.outlet || undefined);
+		route(href, node.dataset?.outlet || undefined);
 
-        return false;
-    }
+		return false;
+	}
 );
 
 addEventListener(
-    'popstate',
-    function singularOnPopstate(event) {
-        const {state} = event;
+	'popstate',
+	function singularOnPopstate(event) {
+		const {state} = event;
 
-        if (state && state.singular) {
-            route$(state.singular.href, undefined, false)
-                .then();
-        }
+		if (state && state.singular) {
+			route$(state.singular.href, undefined, false)
+				.then();
+		}
 
-        return true;
-    }
+		return true;
+	}
 );
 
 addEventListener(
-    'DOMContentLoaded',
-    function singularOnDOMContentLoaded() {
-        PAGES[CURRENT_URL].html = document.documentElement.outerHTML;
+	'DOMContentLoaded',
+	function singularOnDOMContentLoaded() {
+		PAGES[CURRENT_URL].html = documentElement.outerHTML;
 
-        CURRENT_URL = getHref(START_URL);
-        CURRENT_SCRIPT_URL = getScriptUrl(START_URL);
-
-        if (START_URL !== CURRENT_URL) {
-            PAGES[CURRENT_URL] = PAGES[START_URL];
-            delete PAGES[START_URL];
-        }
-
-        if (START_URL !== CURRENT_SCRIPT_URL) {
-            LIFECYCLES[CURRENT_SCRIPT_URL] = LIFECYCLES[START_URL];
-            delete LIFECYCLES[START_URL];
-        }
-
-        onLoad$([document.documentElement])
-            .then();
-    }
+		onLoad$([documentElement])
+			.then();
+	}
 );
+
+//////////////////////////////
+// Plugins
+
+
+const ORIGIN_LENGTH                = location.origin.length;
+let ACTIVATED_LINKS: HTMLElement[] = [];
+
+function activateSelector(selector: string) {
+	const containers = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
+	let current      = containers.length;
+	while (current-- > 0) {
+		activateContainer(containers[current]);
+	}
+}
+
+function inactivateAnchors() {
+	const anchors = ACTIVATED_LINKS;
+	let current   = anchors.length;
+	while (current-- > 0) {
+		anchors[current].classList.remove('_active');
+	}
+
+	ACTIVATED_LINKS = [];
+}
+
+function activateContainer(container: HTMLElement) {
+	const currentPath = getUrl(location.href.substring(ORIGIN_LENGTH));
+
+	const anchors = container.getElementsByTagName('A') as any as HTMLAnchorElement[];
+	let current   = anchors.length;
+	while (current-- > 0) {
+		let anchor = anchors[current];
+		const href = getUrl(anchor.href.substring(ORIGIN_LENGTH));
+		if ((currentPath !== href)) {
+			continue;
+		}
+
+		activateAnchor(anchor);
+		anchor.focus();
+		anchor.blur();
+
+		do {
+			let ul = anchor.closest('ul')
+			if (ul) {
+				const li = ul.closest('li');
+				if (li) {
+					anchor = li.getElementsByTagName('A')[0] as HTMLAnchorElement;
+					if (anchor) {
+						activateAnchor(anchor);
+						continue;
+					}
+				}
+			}
+			break;
+		} while (anchor);
+	}
+}
+
+function activateAnchor(anchor: HTMLElement) {
+	ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+	anchor.classList.add('_active');
+}
+
+export function setActiveLink(selector: string) {
+	return load(() => {
+		activateSelector(selector)
+	})
+		.unload(inactivateAnchors);
+}
+
+export function setPathClass({prefix, baseHref}: Partial<{ prefix: string, baseHref: string }>) {
+	if (!prefix) {
+		prefix = 'path';
+	}
+
+	if (!baseHref) {
+		baseHref = '';
+	}
+
+	let offset = baseHref.length;
+
+	if (!baseHref.endsWith('/')) {
+		offset++;
+	}
+
+	const {classList} = documentElement;
+	let lastClassNames: string[];
+
+	load(() => {
+		let {pathname} = location;
+
+		if (_INDEX.test(pathname)) {
+			pathname = pathname.substring(0, pathname.lastIndexOf('.'));
+		} else if (pathname.endsWith('/')) {
+			pathname = pathname.substring(0, pathname.length - 1);
+		}
+
+		const classNames        = [];
+		const classNamePrefixes = [prefix]
+		const segments          = (pathname.slice(offset) || 'index').split('/');
+		const end               = segments.length;
+		let current             = -1;
+		while (++current < end) {
+			const segment = segments[current];
+
+			let lastCurrent = classNamePrefixes.length;
+			while (lastCurrent-- > 0) {
+				const lastClassName            = classNamePrefixes[lastCurrent];
+				let className                  = lastClassName + '_' + segment;
+				classNames[classNames.length]  = className;
+				classNamePrefixes[lastCurrent] = className;
+
+				// @ts-ignore
+				if (+segment == segment) {
+					className                                   = lastClassName + '_*';
+					classNames[classNames.length]               = className;
+					classNamePrefixes[classNamePrefixes.length] = className;
+				}
+			}
+		}
+
+		classList.add(...classNames);
+		lastClassNames = classNames;
+	});
+
+	unload(() => {
+		classList.remove(...lastClassNames);
+	})
+}

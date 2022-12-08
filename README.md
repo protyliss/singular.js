@@ -4,12 +4,13 @@ Micro-framework as MPA[^mpa] transforms to SPA[^spa]
 
 ## Overview
 
-Now days, Javascript-based SPA Framework are Very powerful and useful. But, It's not a standard to makes every
-website.
+Now days, Javascript-based SPA Frameworks are Very powerful and useful.
+But, SPA Pattern is not a standard to makes every website.
 
 Singular helps the MPA works like SPA.
+that can have benefits of SPA.
 
-* Change Content without Redirect to target URL
+* Change Content without __Redirect__ to target URL 
 * Re-rendering only targeted elements[^optimize-rendering]
 * HTTP Request only once
   * `html` files[^optimize-html] 
@@ -63,6 +64,27 @@ singular.enter(callbackFunction);
 | singular.__exit__   | beforeunload     | Origin URL  | Multiple |
 | singular.__unload__ | beforeunload     | Every URL   | Multiple |
 
+1. Move to `/foo`
+   1. `/foo` ready()
+   2. `/foo` load()
+   3. `/foo` enter()
+2. Move to `/bar`
+   1. `/foo:1-3` exit()
+   2. `/foo:1-2` unload()
+   3. `/bar` ready()
+   4. `/foo:1-2`, `/bar` load()
+   5. `/bar` enter()
+3. Move to `/baz`
+   1. `/bar:2.5` exit()
+   2. `/foo:1-2`, `/bar:2-4` unload()
+   3. `/baz` ready()
+   4. `/foo:1-2`, `/bar:2-4`, `/baz` load()
+   5. `/baz` enter()
+4. Move to `/foo`
+   1. `/baz` exit()
+   2. `/foo`, `/bar`, `/baz` unload()
+   3. `/foo`, `/bar`, `/baz` load()
+   4. `/foo` enter()
 ---
 
 [^mpa]: Multiple Page Application

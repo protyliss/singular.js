@@ -1,1 +1,728 @@
-document.documentElement.style.visibility="hidden";const{href:f,origin:q}=location,{isArray:F,from:X}=Array,{keys:Z}=Object,ee=!document.currentScript;let T={development:!1,outletSelectors:null,classSelectors:null,enableKeepHtml:!1,enableKeepStyles:!1,enableSearchString:!1,enableHashString:!1,disableTitleChange:!1},R={},K={},x=!1,L=f,w=f,v;class I{constructor(e,t,r=[],a=[],c=void 0,p=""){this.url=e;this.title=t;this.styles=r;this.scripts=a;this.classes=c;this.html=p}}class o{static seriesCallbacks=[];static parallelCallbacks=[];static readyCallbacks=[];static loadCallbacks=[];static unloadCallbacks=[];enterCallbacks=[];exitCallbacks=[]}class te{singular;constructor(e){this.singular={href:e}}}class P extends Array{constructor(e){super(0),this.push.apply(this,F(e)?e:[e])}#e(e,t){const r=[],a=this.length;let c=-1;for(;++c<a;){const p=this[c].querySelectorAll(t),m=p.length;let i=-1;for(;++i<m;){const u=p[i];r.indexOf(u)===-1&&(r[r.length]=u)}}return r}getElementById(e){return document.getElementById(e)}getElementsByTagName(e){return this.#e("getElementsByTagName",e)}getElementsByClassName(e){return this.#e("getElementsByClassName",e)}querySelector(e){const t=this.length;let r=-1;for(;++r<t;){const a=this[r].querySelector(e);if(a)return a}return null}querySelectorAll(e){return this.#e("querySelectorAll",e)}}const M={[f]:new I(f,document.title)},S={[f]:new o};export const chaining={configure,series,parallel,ready,load,enter,exit,unload,changed};export function configure(n){let{classSelectors:e}=n;if(e){F(e)||(e=[e]);let t=e.length;const r=[];for(;t-- >0;)r.push(...e[t].split(","));n.classSelectors=r}return T=Object.assign(T,n),chaining}export function addStyle(n){const e=O("link");return{link:e,promise:new Promise(t=>{const r=()=>t();e.onload=r,e.onerror=r,e.rel="stylesheet",document.head.append(e),e.href=n})}}export function addScript(n,e=!0){const t=O("script");return{script:t,promise:new Promise(r=>{const a=()=>r();ee&&(t.type="module"),t.onload=a,t.onerror=a,t.async=e,document.head.append(t),t.src=n})}}export function parallel(n){return o.parallelCallbacks[o.parallelCallbacks.length]=n,chaining}export function series(n){return o.seriesCallbacks[o.seriesCallbacks.length]=n,chaining}export function ready(n){return o.readyCallbacks[o.readyCallbacks.length]=n,x&&n(new P([document.body])),chaining}export function load(n){return o.loadCallbacks[o.loadCallbacks.length]=n,x&&n(new P([document.body])),chaining}export function enter(n){const{enterCallbacks:e}=S[w];return e[e.length]=n,x&&n(new P([document.body])),chaining}export function exit(n){const{exitCallbacks:e}=S[w];return e[e.length]=n,chaining}export function unload(n){return o.unloadCallbacks[o.unloadCallbacks.length]=n,chaining}export function route(n,e){try{U(n,e)}catch(t){return console.warn(t),T.development||location.replace(n),null}}export function changed(n=[document.body]){const e=new P(n),t=o.loadCallbacks.length;let r=-1;for(;++r<t;)o.loadCallbacks[r](e);return chaining}function O(n){return document.createElement(n)}function V(n){const e=document.createDocumentFragment(),t=O("html");return e.appendChild(t),t.innerHTML=n,t}function U(n,e=void 0,t=!0){const{entries:r,urls:a}=$(document.documentElement),{entries:c,urls:p}=j(document.documentElement);let m=r.length,i=-1;for(;++i<m;){const[l,s]=r[i];R[s]=l}for(m=c.length,i=-1;++i<m;){const[l,s]=c[i];K[s]=l,document.head.append(l)}const u=M[L];u.url=f,u.title=document.title,u.styles=a,u.scripts=p,u.classes=G(document);const{links:b}=document;for(i=b.length;i-- >0;){const l=b[i],s=l.getAttribute("href");!s||!(s.startsWith("./")||s.startsWith("../"))||l.setAttribute("href",l.href)}return(U=d).apply(this,arguments);function d(l,s=void 0,g=!0){if(x){const N=S[w].exitCallbacks.concat(o.unloadCallbacks),J=N.length;let D=-1;try{for(;++D<J;)N[D]()}catch(Q){console.warn(Q)}}else v&&v.abort();window.scrollTo(0,0),x=!1,L=W(l),w=_(l);const h=M[L];return h?T.enableKeepHtml?(g&&k(C(h.url,l)),B(h)):E(l).then(([A,N])=>(h.html=N,g&&k(A),B(h))):E(l).then(([A,N])=>(g&&k(A),ne(l,A,N)))}function E(l){return v=new AbortController,fetch(l,{signal:v.signal}).then(y).catch(H)}function y(l){const{url:s}=l;return Promise.all([Promise.resolve(s),l.text()])}function H(l){console.warn(l)}function k(l){history.pushState(new te(l),l,l)}function C(l,s){const g=new URL(l),h=new URL(s);return g.search=h.search,g.hash=h.hash,""+h}}function G(n){const{classSelectors:e}=T;if(e){const t={};let r=e.length;for(;r-- >0;){const a=e[r];t[a]=(n.querySelector(a)||{}).className||""}return t}}function ne(n,e,t){const r=V(t),a=(r.getElementsByTagName("TITLE")[0]||{}).innerText||n,{urls:c}=$(r),{entries:p,urls:m}=j(r);let i=p.length;for(;i-- >0;){const[y]=p[i];y?.parentNode&&y.parentNode.removeChild(y)}let u=r.outerHTML;const b=new I(e,a,c,m,G(r),u),d=new URL(L);d.pathname.endsWith("/")&&(d.pathname=d.pathname.substring(0,d.pathname.length-1)),M[""+d]=b;const E=_(""+d);return S[E]||(S[E]=new o),B(b)}function W(n){const e=new URL(n);T.enableHashString||(e.hash=""),T.enableSearchString||(e.search="");let{pathname:t}=e;return/\/(index\.\w{3,4})?$/.test(t)&&(e.pathname=t.substring(0,t.lastIndexOf("/"))),console.log(""+e),""+e}function _(n){const e=new URL(n);e.hash="",e.search="";let{pathname:t}=e;return t.endsWith("/")&&(e.pathname=t.substring(0,t.length-1)),""+e}function B(n){const{url:e,title:t,styles:r,scripts:a,classes:c,html:p}=n,{outletSelectors:m,classSelectors:i}=T;if(T.disableTitleChange||(document.title=t||e.substring(e.indexOf("://")+3)),i&&c){let l=i.length;for(;l-- >0;){const s=i[l],g=document.documentElement.querySelector(s);g&&(g.className=c[s])}}const u=V(p);let b=!1,d;if(m){const l=document.querySelectorAll(m);if(d=Array.from(u.querySelectorAll(m)),d.length===l.length){let s=d.length;for(;s-- >0;){const g=d[s],h=l[s];if(g.tagName!==h.tagName){b=!0;break}}if(!b)for(s=d.length;s-- >0;){const g=d[s],h=l[s];h.parentNode.replaceChild(g,h)}}else b=!0}else b=!0;b&&(document.body.innerHTML=(u.getElementsByTagName("BODY")[0]||u).innerHTML,d=[document.body]),u.innerHTML="";const E=[],y=[Promise.resolve()],H=[];let k,C;if(!T.enableKeepStyles){const l=Z(R);for(C=l.length;C-- >0;){let s=l[C];r.indexOf(s)>-1||(H[H.length]=R[s],delete R[s])}}for(k=r.length,C=-1;++C<k;){const l=r[C];if(R[l])continue;const{link:s,promise:g}=addStyle(l);R[l]=s,y[y.length]=g,E[E.length]=s}for(k=a.length,C=-1;++C<k;){const l=a[C];if(K[l]?.parentNode)continue;const{script:s,promise:g}=addScript(l);K[l]=s,y[y.length]=g,E[E.length]=s}return E.length&&document.head.append(...E),Promise.all(y).then(()=>{let l=H.length;for(;l-- >0;){const s=H[l];s&&s.parentNode&&s.parentNode.removeChild(s)}return z(d)})}function Y(n,e,t){const r=[],a=[],c=X(n.querySelectorAll(e)),p=c.length;let m=-1;for(;++m<p;){const i=c[m];if(!i.getAttribute(t)||!i[t].startsWith(q))continue;const u=le(i,t);r[r.length]=[i,u],a[a.length]=u}return{entries:r,urls:a}}function $(n){return Y(n,"link[rel=stylesheet]","href")}function j(n){return Y(n,"script[src]","src")}function le(n,e){return""+new URL(n.getAttribute(e),location.href)}function z(n){const e=o.seriesCallbacks.length;let t=-1,r=Promise.resolve();for(;++t<e;){const c=o.seriesCallbacks[t];r=r.then(()=>c())}const a=[r];for(t=o.parallelCallbacks.length;t-- >0;)a[a.length]=o.parallelCallbacks[t]();return o.seriesCallbacks=[],o.parallelCallbacks=[],Promise.all(a).then(()=>re(n)).catch(se)}function re(n){document.documentElement.style.visibility="inherit";try{ae(new P(n))}catch(e){console.warn(e)}return n}function se(n){console.warn(n),T.development||location.reload()}function ae(n){x=!0;const e=S[w],t=[...o.readyCallbacks.splice(0,o.readyCallbacks.length),...o.loadCallbacks,...e.enterCallbacks],r=t.length;let a=-1;for(;++a<r;)t[a](n)}addEventListener("click",function(e){let t=e.target;switch(t.tagName){case"BODY":return!1;case"A":break;default:if(t._singularAnchor===!1)return!0;const c=t.closest("a");if(!c||!c.href)return t._singularAnchor=!1,!0;t=c}const{href:r}=t,a=t.getAttribute("href");return t.target||t.download||!r.startsWith(q)||a&&a.startsWith("#")?(t._singularAnchor=!1,!0):(t._singularAnchor=t,e.stopPropagation(),e.preventDefault(),route(r,t.dataset?.outlet||void 0),!1)}),addEventListener("popstate",function(e){const{state:t}=e;return t&&t.singular&&U(t.singular.href,void 0,!1).then(),!0}),addEventListener("DOMContentLoaded",function(){M[L].html=document.documentElement.outerHTML,L=W(f),w=_(f),f!==L&&(M[L]=M[f],delete M[f]),f!==w&&(S[w]=S[f],delete S[f]),z([document.documentElement]).then()});
+const { documentElement } = document;
+documentElement.style.visibility = "hidden";
+const { href: START_URL, origin: ORIGIN } = location;
+const { isArray: IS_ARRAY, from: FROM } = Array;
+const { keys: KEYS } = Object;
+const ESM = !document.currentScript;
+const _ROOT_INDEX = /^\/index\.\w{2,4}$/;
+const _INDEX = /\/index\.\w{2,4}$/;
+let CONFIGURE = {
+  development: false,
+  outletSelectors: null,
+  classSelectors: null,
+  enableKeepHtml: false,
+  enableKeepStyles: false,
+  enableSearchString: false,
+  enableHashString: false,
+  disableTitleReset: false,
+  disableTitleChange: false
+};
+let RENDERED_STYLES = {};
+let RENDERED_SCRIPTS = {};
+let LOADED = false;
+let CURRENT_URL = getCurrentUrl(START_URL);
+let CURRENT_SCRIPT_URL = getLifecycleUrl(START_URL);
+let ABORT_CONTROLLER;
+function debug(...args) {
+  return (debug = CONFIGURE.development ? function(...args2) {
+    console.debug.apply(null, ["[singular]", ...args2]);
+  } : function() {
+  }).apply(this, arguments);
+}
+class Page {
+  constructor(url, title, styles = [], scripts = [], classes = void 0, html = "") {
+    this.url = url;
+    this.title = title;
+    this.styles = styles;
+    this.scripts = scripts;
+    this.classes = classes;
+    this.html = html;
+  }
+}
+class Lifecycle {
+  static seriesCallbacks = [];
+  static parallelCallbacks = [];
+  static readyCallbacks = [];
+  static loadCallbacks = [];
+  static unloadCallbacks = [];
+  enterCallbacks = [];
+  exitCallbacks = [];
+  static get current() {
+    return LIFECYCLES[CURRENT_SCRIPT_URL] || (LIFECYCLES[CURRENT_SCRIPT_URL] = new Lifecycle());
+  }
+}
+class State {
+  singular;
+  constructor(href) {
+    this.singular = {
+      href
+    };
+  }
+}
+class ChangedElements extends Array {
+  constructor(changedElements) {
+    super(0);
+    this.push.apply(this, IS_ARRAY(changedElements) ? changedElements : [changedElements]);
+  }
+  #getElements(methodName, selectors) {
+    const list = [];
+    const end = this.length;
+    let current = -1;
+    while (++current < end) {
+      const nodes = this[current].querySelectorAll(selectors);
+      const nodeEnd = nodes.length;
+      let nodeCurrent = -1;
+      while (++nodeCurrent < nodeEnd) {
+        const node = nodes[nodeCurrent];
+        if (list.indexOf(node) === -1) {
+          list[list.length] = node;
+        }
+      }
+    }
+    return list;
+  }
+  getElementById(elementId) {
+    return document.getElementById(elementId);
+  }
+  getElementsByTagName(qualifiedName) {
+    return this.#getElements("getElementsByTagName", qualifiedName);
+  }
+  getElementsByClassName(classNames) {
+    return this.#getElements("getElementsByClassName", classNames);
+  }
+  querySelector(selectors) {
+    const end = this.length;
+    let current = -1;
+    while (++current < end) {
+      const node = this[current].querySelector(selectors);
+      if (node) {
+        return node;
+      }
+    }
+    return null;
+  }
+  querySelectorAll(selectors) {
+    return this.#getElements("querySelectorAll", selectors);
+  }
+}
+const PAGES = {
+  [CURRENT_URL]: new Page(START_URL, document.title)
+};
+const LIFECYCLES = {
+  [CURRENT_SCRIPT_URL]: new Lifecycle()
+};
+const CHAIN = {
+  configure,
+  series,
+  parallel,
+  ready,
+  load,
+  enter,
+  exit,
+  unload,
+  changed
+};
+export function configure(values) {
+  let { classSelectors } = values;
+  if (classSelectors) {
+    if (!IS_ARRAY(classSelectors)) {
+      classSelectors = [classSelectors];
+    }
+    let current = classSelectors.length;
+    const dividedClassSelectors = [];
+    while (current-- > 0) {
+      dividedClassSelectors.push(...classSelectors[current].split(","));
+    }
+    values.classSelectors = dividedClassSelectors;
+  }
+  CONFIGURE = Object.assign(CONFIGURE, values);
+  return CHAIN;
+}
+export function addStyle(href) {
+  const link = tag("link");
+  return {
+    link,
+    promise: new Promise((resolve) => {
+      const resolver = () => resolve();
+      link.onload = resolver;
+      link.onerror = resolver;
+      link.rel = "stylesheet";
+      document.head.append(link);
+      link.href = href;
+    })
+  };
+}
+export function addScript(src, async = true) {
+  const script = tag("script");
+  return {
+    script,
+    promise: new Promise((resolve) => {
+      const resolver = () => resolve();
+      if (ESM) {
+        script.type = "module";
+      }
+      script.onload = resolver;
+      script.onerror = resolver;
+      script.async = async;
+      document.head.append(script);
+      script.src = src;
+    })
+  };
+}
+export function parallel(callback) {
+  Lifecycle.parallelCallbacks[Lifecycle.parallelCallbacks.length] = callback;
+  return CHAIN;
+}
+export function series(callback) {
+  Lifecycle.seriesCallbacks[Lifecycle.seriesCallbacks.length] = callback;
+  return CHAIN;
+}
+export function ready(callback) {
+  Lifecycle.readyCallbacks[Lifecycle.readyCallbacks.length] = callback;
+  if (LOADED) {
+    callback(new ChangedElements([document.body]));
+  }
+  return CHAIN;
+}
+export function load(callback) {
+  Lifecycle.loadCallbacks[Lifecycle.loadCallbacks.length] = callback;
+  if (LOADED) {
+    callback(new ChangedElements([document.body]));
+  }
+  return CHAIN;
+}
+export function enter(callback) {
+  const { enterCallbacks } = Lifecycle.current;
+  enterCallbacks[enterCallbacks.length] = callback;
+  if (LOADED) {
+    callback(new ChangedElements([document.body]));
+  }
+  return CHAIN;
+}
+export function exit(callback) {
+  const { exitCallbacks } = Lifecycle.current;
+  exitCallbacks[exitCallbacks.length] = callback;
+  return CHAIN;
+}
+export function unload(callback) {
+  Lifecycle.unloadCallbacks[Lifecycle.unloadCallbacks.length] = callback;
+  return CHAIN;
+}
+export function route(requestUrl, outletSelectors) {
+  try {
+    route$(requestUrl, outletSelectors);
+  } catch (reason) {
+    console.warn(reason);
+    if (!CONFIGURE.development) {
+      location.replace(requestUrl);
+    }
+    return null;
+  }
+}
+export function changed(changedElements = [document.body]) {
+  const changedElements_ = new ChangedElements(changedElements);
+  const end = Lifecycle.loadCallbacks.length;
+  let current = -1;
+  while (++current < end) {
+    Lifecycle.loadCallbacks[current](changedElements_);
+  }
+  return CHAIN;
+}
+function tag(tagName) {
+  return document.createElement(tagName);
+}
+function fragmentHtml(html) {
+  const fragment = document.createDocumentFragment();
+  const fragmentHtml2 = tag("html");
+  fragment.appendChild(fragmentHtml2);
+  fragmentHtml2.innerHTML = html;
+  return fragmentHtml2;
+}
+function route$(requestUrl, outletSelectors = void 0, push = true) {
+  const { entries: styleEntries, urls: styleUrls } = getStyles(documentElement);
+  const { entries: scriptEntries, urls: scriptUrls } = getScripts(documentElement);
+  let end = styleEntries.length;
+  let current = -1;
+  while (++current < end) {
+    const [node, url] = styleEntries[current];
+    RENDERED_STYLES[url] = node;
+  }
+  end = scriptEntries.length;
+  current = -1;
+  while (++current < end) {
+    const [node, url] = scriptEntries[current];
+    RENDERED_SCRIPTS[url] = node;
+    document.head.append(node);
+  }
+  const page = PAGES[CURRENT_URL];
+  page.url = START_URL;
+  page.title = document.title;
+  page.styles = styleUrls;
+  page.scripts = scriptUrls;
+  page.classes = getClassNameMap(document);
+  const { links } = document;
+  current = links.length;
+  while (current-- > 0) {
+    const anchor = links[current];
+    const href = anchor.getAttribute("href");
+    if (!href || !(href.startsWith("./") || href.startsWith("../"))) {
+      continue;
+    }
+    anchor.setAttribute("href", anchor.href);
+  }
+  return (route$ = routeAfterFirstRouted).apply(this, arguments);
+  function routeAfterFirstRouted(requestUrl2, outletSelectors2 = void 0, push2 = true) {
+    debug(requestUrl2);
+    if (LOADED) {
+      const lifecycle = Lifecycle.current;
+      const callbacks = lifecycle.exitCallbacks.concat(Lifecycle.unloadCallbacks);
+      const end2 = callbacks.length;
+      let current2 = -1;
+      try {
+        while (++current2 < end2) {
+          callbacks[current2]();
+        }
+      } catch (reason) {
+        console.warn(reason);
+      }
+    } else if (ABORT_CONTROLLER) {
+      ABORT_CONTROLLER.abort();
+    }
+    window.scrollTo(0, 0);
+    if (!CONFIGURE.disableTitleReset) {
+      document.title = requestUrl2.substring(requestUrl2.indexOf(":") + 3);
+    }
+    LOADED = false;
+    CURRENT_URL = getCurrentUrl(requestUrl2);
+    CURRENT_SCRIPT_URL = getLifecycleUrl(requestUrl2);
+    const page2 = PAGES[CURRENT_URL];
+    if (page2) {
+      if (CONFIGURE.enableKeepHtml) {
+        push2 && pushState(getFixedUrl2(page2.url, requestUrl2));
+        return render$(page2);
+      }
+      return request(requestUrl2).then(([responseUrl, html]) => {
+        page2.html = html;
+        push2 && pushState(responseUrl);
+        return render$(page2);
+      });
+    }
+    return request(requestUrl2).then(([responseUrl, html]) => {
+      push2 && pushState(responseUrl);
+      return parse$(requestUrl2, responseUrl, html);
+    });
+  }
+  function request(href) {
+    ABORT_CONTROLLER = new AbortController();
+    return fetch(href, {
+      signal: ABORT_CONTROLLER.signal
+    }).then(responseText).catch(catchError);
+  }
+  function responseText(response) {
+    const { url } = response;
+    return Promise.all([
+      Promise.resolve(url),
+      response.text()
+    ]);
+  }
+  function catchError(reason) {
+    console.warn(reason);
+  }
+  function pushState(responseUrl) {
+    history.pushState(new State(responseUrl), responseUrl, responseUrl);
+  }
+  function getFixedUrl2(responseUrl, requestUrl2) {
+    const parsedResponseUrl = new URL(responseUrl);
+    const parsedRequestUrl = new URL(requestUrl2);
+    parsedResponseUrl.search = parsedRequestUrl.search;
+    parsedResponseUrl.hash = parsedRequestUrl.hash;
+    return "" + parsedRequestUrl;
+  }
+}
+function getClassNameMap(target) {
+  const { classSelectors } = CONFIGURE;
+  if (classSelectors) {
+    const classes = {};
+    let current = classSelectors.length;
+    while (current-- > 0) {
+      const selector = classSelectors[current];
+      classes[selector] = (target.querySelector(selector) || {}).className || "";
+    }
+    return classes;
+  }
+  return void 0;
+}
+function parse$(requestUrl, responseUrl, rawHtml) {
+  const fragment = fragmentHtml(rawHtml);
+  const title = (fragment.getElementsByTagName("TITLE")[0] || {}).innerText || requestUrl;
+  const { urls: styleUrls } = getStyles(fragment);
+  const { entries: scriptEntries, urls: scriptUrls } = getScripts(fragment);
+  let current = scriptEntries.length;
+  while (current-- > 0) {
+    const [node] = scriptEntries[current];
+    if (node?.parentNode) {
+      node.parentNode.removeChild(node);
+    }
+  }
+  let html = fragment.outerHTML;
+  const page = new Page(responseUrl, title, styleUrls, scriptUrls, getClassNameMap(fragment), html);
+  const url = new URL(CURRENT_URL);
+  if (url.pathname.endsWith("/")) {
+    url.pathname = url.pathname.substring(0, url.pathname.length - 1);
+  }
+  PAGES["" + url] = page;
+  return render$(page);
+}
+function getUrl(url) {
+  if (url.endsWith("/") || _INDEX.test(url)) {
+    return url.substring(0, url.lastIndexOf("/"));
+  }
+  return url;
+}
+function getCurrentUrl(href) {
+  const url = new URL(href);
+  if (!CONFIGURE.enableHashString) {
+    url.hash = "";
+  }
+  if (!CONFIGURE.enableSearchString) {
+    url.search = "";
+  }
+  url.pathname = getUrl(url.pathname);
+  return "" + url;
+}
+function getLifecycleUrl(href) {
+  const url = new URL(href);
+  url.hash = "";
+  url.search = "";
+  let { pathname } = url;
+  if (_ROOT_INDEX.test(pathname)) {
+    url.pathname = "";
+  } else if (pathname.endsWith("/")) {
+    url.pathname = pathname.substring(0, pathname.length - 1);
+  }
+  return "" + url;
+}
+function render$(page) {
+  const { url, title, styles, scripts, classes, html } = page;
+  const { outletSelectors, classSelectors } = CONFIGURE;
+  if (!CONFIGURE.disableTitleChange) {
+    document.title = title || url.substring(url.indexOf("://") + 3);
+  }
+  if (classSelectors && classes) {
+    let current2 = classSelectors.length;
+    while (current2-- > 0) {
+      const selector = classSelectors[current2];
+      const target = documentElement.querySelector(selector);
+      if (target) {
+        target.className = classes[selector];
+      }
+    }
+  }
+  const fragment = fragmentHtml(html);
+  let changeAll = false;
+  let changedElements;
+  if (outletSelectors) {
+    const currentElements = document.querySelectorAll(outletSelectors);
+    changedElements = Array.from(fragment.querySelectorAll(outletSelectors));
+    if (changedElements.length === currentElements.length) {
+      let current2 = changedElements.length;
+      while (current2-- > 0) {
+        const fragmentElement = changedElements[current2];
+        const currentElement = currentElements[current2];
+        if (fragmentElement.tagName !== currentElement.tagName) {
+          changeAll = true;
+          break;
+        }
+      }
+      if (!changeAll) {
+        current2 = changedElements.length;
+        while (current2-- > 0) {
+          const from = changedElements[current2];
+          const to = currentElements[current2];
+          to.parentNode.replaceChild(from, to);
+        }
+      }
+    } else {
+      changeAll = true;
+    }
+  } else {
+    changeAll = true;
+  }
+  if (changeAll) {
+    document.body.innerHTML = (fragment.getElementsByTagName("BODY")[0] || fragment).innerHTML;
+    changedElements = [document.body];
+  }
+  fragment.innerHTML = "";
+  const elements = [];
+  const importPromises = [Promise.resolve()];
+  const removeStyles = [];
+  let end;
+  let current;
+  if (!CONFIGURE.enableKeepStyles) {
+    const renderedStyleHrefs = KEYS(RENDERED_STYLES);
+    current = renderedStyleHrefs.length;
+    while (current-- > 0) {
+      let href = renderedStyleHrefs[current];
+      if (styles.indexOf(href) > -1) {
+        continue;
+      }
+      removeStyles[removeStyles.length] = RENDERED_STYLES[href];
+      delete RENDERED_STYLES[href];
+    }
+  }
+  end = styles.length;
+  current = -1;
+  while (++current < end) {
+    const href = styles[current];
+    if (RENDERED_STYLES[href]) {
+      continue;
+    }
+    const { link, promise } = addStyle(href);
+    RENDERED_STYLES[href] = link;
+    importPromises[importPromises.length] = promise;
+    elements[elements.length] = link;
+  }
+  end = scripts.length;
+  current = -1;
+  while (++current < end) {
+    const src = scripts[current];
+    if (RENDERED_SCRIPTS[src]?.parentNode) {
+      continue;
+    }
+    const { script, promise } = addScript(src);
+    RENDERED_SCRIPTS[src] = script;
+    importPromises[importPromises.length] = promise;
+    elements[elements.length] = script;
+  }
+  if (elements.length) {
+    document.head.append(...elements);
+  }
+  return Promise.all(importPromises).then(() => {
+    let current2 = removeStyles.length;
+    while (current2-- > 0) {
+      const link = removeStyles[current2];
+      if (link && link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
+    }
+    return onLoad$(changedElements);
+  });
+}
+function getResources(parentElement, selector, attributeName) {
+  const entries = [];
+  const urls = [];
+  const nodes = FROM(parentElement.querySelectorAll(selector));
+  const end = nodes.length;
+  let current = -1;
+  while (++current < end) {
+    const node = nodes[current];
+    if (!node.getAttribute(attributeName) || !node[attributeName].startsWith(ORIGIN)) {
+      continue;
+    }
+    const value = getFixedUrl(node, attributeName);
+    entries[entries.length] = [node, value];
+    urls[urls.length] = value;
+  }
+  return { entries, urls };
+}
+function getStyles(parentElement) {
+  return getResources(parentElement, "link[rel=stylesheet]", "href");
+}
+function getScripts(parentElement) {
+  return getResources(parentElement, "script[src]", "src");
+}
+function getFixedUrl(node, attribute) {
+  return "" + new URL(node.getAttribute(attribute), location.href);
+}
+function onLoad$(changedElements) {
+  const end = Lifecycle.seriesCallbacks.length;
+  let current = -1;
+  let series2 = Promise.resolve();
+  while (++current < end) {
+    const callback = Lifecycle.seriesCallbacks[current];
+    series2 = series2.then(() => callback());
+  }
+  const prepares = [series2];
+  current = Lifecycle.parallelCallbacks.length;
+  while (current-- > 0) {
+    prepares[prepares.length] = Lifecycle.parallelCallbacks[current]();
+  }
+  Lifecycle.seriesCallbacks = [];
+  Lifecycle.parallelCallbacks = [];
+  return Promise.all(prepares).then(() => {
+    return onLoading$(changedElements);
+  }).catch(catchReload);
+}
+function onLoading$(changedElements) {
+  documentElement.style.visibility = "inherit";
+  try {
+    onLoaded(new ChangedElements(changedElements));
+  } catch (reason) {
+    console.warn(reason);
+  }
+  return changedElements;
+}
+function catchReload(reason) {
+  console.warn(reason);
+  if (!CONFIGURE.development) {
+    location.reload();
+  }
+}
+function onLoaded(changedElements) {
+  LOADED = true;
+  const lifecycle = Lifecycle.current;
+  const callbacks = [
+    ...Lifecycle.readyCallbacks.splice(0, Lifecycle.readyCallbacks.length),
+    ...Lifecycle.loadCallbacks,
+    ...lifecycle.enterCallbacks
+  ];
+  const end = callbacks.length;
+  let current = -1;
+  while (++current < end) {
+    callbacks[current](changedElements);
+  }
+}
+addEventListener("click", function singularOnClick(event) {
+  let node = event.target;
+  switch (node.tagName) {
+    case "BODY":
+      return false;
+    case "A":
+      break;
+    default:
+      if (node._singularAnchor === false) {
+        return true;
+      }
+      const anchor = node.closest("a");
+      if (!anchor || !anchor.href) {
+        node._singularAnchor = false;
+        return true;
+      }
+      node = anchor;
+  }
+  const { href } = node;
+  const rawHref = node.getAttribute("href");
+  if (node.target || node.download || !href.startsWith(ORIGIN) || rawHref && rawHref.startsWith("#")) {
+    node._singularAnchor = false;
+    return true;
+  }
+  node._singularAnchor = node;
+  event.stopPropagation();
+  event.preventDefault();
+  route(href, node.dataset?.outlet || void 0);
+  return false;
+});
+addEventListener("popstate", function singularOnPopstate(event) {
+  const { state } = event;
+  if (state && state.singular) {
+    route$(state.singular.href, void 0, false).then();
+  }
+  return true;
+});
+addEventListener("DOMContentLoaded", function singularOnDOMContentLoaded() {
+  PAGES[CURRENT_URL].html = documentElement.outerHTML;
+  onLoad$([documentElement]).then();
+});
+const ORIGIN_LENGTH = location.origin.length;
+let ACTIVATED_LINKS = [];
+function activateSelector(selector) {
+  const containers = Array.from(document.querySelectorAll(selector));
+  let current = containers.length;
+  while (current-- > 0) {
+    activateContainer(containers[current]);
+  }
+}
+function inactivateAnchors() {
+  const anchors = ACTIVATED_LINKS;
+  let current = anchors.length;
+  while (current-- > 0) {
+    anchors[current].classList.remove("_active");
+  }
+  ACTIVATED_LINKS = [];
+}
+function activateContainer(container) {
+  const currentPath = getUrl(location.href.substring(ORIGIN_LENGTH));
+  const anchors = container.getElementsByTagName("A");
+  let current = anchors.length;
+  while (current-- > 0) {
+    let anchor = anchors[current];
+    const href = getUrl(anchor.href.substring(ORIGIN_LENGTH));
+    console.log(currentPath, href, anchor);
+    if (currentPath !== href) {
+      continue;
+    }
+    activateAnchor(anchor);
+    anchor.focus();
+    anchor.blur();
+    do {
+      let ul = anchor.closest("ul");
+      if (ul) {
+        const li = ul.closest("li");
+        if (li) {
+          anchor = li.getElementsByTagName("A")[0];
+          if (anchor) {
+            activateAnchor(anchor);
+            continue;
+          }
+        }
+      }
+      break;
+    } while (anchor);
+  }
+}
+function activateAnchor(anchor) {
+  ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+  anchor.classList.add("_active");
+}
+export function setActiveLink(selector) {
+  return load(() => {
+    activateSelector(selector);
+  }).unload(inactivateAnchors);
+}
+export function setPathClass({ prefix, baseHref }) {
+  if (!prefix) {
+    prefix = "path";
+  }
+  if (!baseHref) {
+    baseHref = "";
+  }
+  let offset = baseHref.length;
+  if (!baseHref.endsWith("/")) {
+    offset++;
+  }
+  const { classList } = documentElement;
+  let lastClassNames;
+  load(() => {
+    let { pathname } = location;
+    if (_INDEX.test(pathname)) {
+      pathname = pathname.substring(0, pathname.lastIndexOf("."));
+    } else if (pathname.endsWith("/")) {
+      pathname = pathname.substring(0, pathname.length - 1);
+    }
+    const classNames = [];
+    const classNamePrefixes = [prefix];
+    const segments = (pathname.slice(offset) || "index").split("/");
+    const end = segments.length;
+    let current = -1;
+    while (++current < end) {
+      const segment = segments[current];
+      let lastCurrent = classNamePrefixes.length;
+      while (lastCurrent-- > 0) {
+        const lastClassName = classNamePrefixes[lastCurrent];
+        let className = lastClassName + "_" + segment;
+        classNames[classNames.length] = className;
+        classNamePrefixes[lastCurrent] = className;
+        if (+segment == segment) {
+          className = lastClassName + "_*";
+          classNames[classNames.length] = className;
+          classNamePrefixes[classNamePrefixes.length] = className;
+        }
+      }
+    }
+    classList.add(...classNames);
+    lastClassNames = classNames;
+  });
+  unload(() => {
+    classList.remove(...lastClassNames);
+  });
+}

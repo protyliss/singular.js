@@ -1,1 +1,61 @@
-import{singular as u}from"./singular";const a=location.origin.length;let l=[];function h(t){const n=Array.from(document.querySelectorAll(t));let c=n.length;for(;c-- >0;)m(n[c])}function g(){const t=l;let n=t.length;for(;n-- >0;)t[n].classList.remove("_active");l=[]}function m(t){const n=location.href.substring(a),c=t.getElementsByTagName("A");let i=c.length;for(;i-- >0;){let e=c[i];if(n===e.href.substring(a)){s(e),e.focus(),e.blur();do{let o=e.closest("ul");if(o){const r=o.closest("li");if(r&&(e=r.getElementsByTagName("A")[0],e)){s(e);continue}}break}while(e)}}}function s(t){l[l.length]=t,t.classList.add("_active")}export function activeLink(t){return u.load(()=>{h(t)}).unload(g)}
+import { singular } from "./singular";
+const ORIGIN_LENGTH = location.origin.length;
+let ACTIVATED_LINKS = [];
+function activateSelector(selector) {
+  const containers = Array.from(document.querySelectorAll(selector));
+  let current = containers.length;
+  while (current-- > 0) {
+    activateContainer(containers[current]);
+  }
+}
+function inactivateAnchors() {
+  const anchors = ACTIVATED_LINKS;
+  let current = anchors.length;
+  while (current-- > 0) {
+    anchors[current].classList.remove("_active");
+  }
+  ACTIVATED_LINKS = [];
+}
+function activateContainer(container) {
+  const currentPath = location.href.substring(ORIGIN_LENGTH);
+  const anchors = container.getElementsByTagName("A");
+  let current = anchors.length;
+  while (current-- > 0) {
+    let anchor = anchors[current];
+    if (currentPath !== anchor.href.substring(ORIGIN_LENGTH)) {
+      continue;
+    }
+    activateAnchor(anchor);
+    anchor.focus();
+    anchor.blur();
+    do {
+      let ul = anchor.closest("ul");
+      if (ul) {
+        const li = ul.closest("li");
+        if (li) {
+          anchor = li.getElementsByTagName("A")[0];
+          if (anchor) {
+            activateAnchor(anchor);
+            continue;
+          }
+        }
+      }
+      break;
+    } while (anchor);
+  }
+}
+function activateAnchor(anchor) {
+  ACTIVATED_LINKS[ACTIVATED_LINKS.length] = anchor;
+  anchor.classList.add("_active");
+}
+export function activeLink(selector) {
+  return singular.load(() => {
+    activateSelector(selector);
+  }).unload(inactivateAnchors);
+}
+export function activeClass(prefix = "") {
+  const offset = prefix.length;
+  return singular.load(() => {
+    console.log(location.pathname.slice(offset).split("/"));
+  });
+}

@@ -39,6 +39,11 @@ interface SingularConfigure {
      */
     enableHashString: boolean;
     /**
+     * Disable Set Document Title to Target URL before Load that like in Browser Process
+     * @default false
+     */
+    disableTitleReset: boolean;
+    /**
      * Disable Change Browser Title after Routed
      * @default false
      */
@@ -57,17 +62,6 @@ declare class ChangedElements extends Array<Element> {
     querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
     querySelectorAll<E extends Element = Element>(selectors: keyof HTMLElementTagNameMap | string): E[];
 }
-export declare const chaining: {
-    configure: typeof configure;
-    series: typeof series;
-    parallel: typeof parallel;
-    ready: typeof ready;
-    load: typeof load;
-    enter: typeof enter;
-    exit: typeof exit;
-    unload: typeof unload;
-    changed: typeof changed;
-};
 /**
  * Set Configure
  * @param values
@@ -228,4 +222,19 @@ export declare function changed(changedElements?: Element[]): {
     unload: typeof unload;
     changed: typeof changed;
 };
+export declare function setActiveLink(selector: string): {
+    configure: typeof configure;
+    series: typeof series;
+    parallel: typeof parallel;
+    ready: typeof ready;
+    load: typeof load;
+    enter: typeof enter;
+    exit: typeof exit;
+    unload: typeof unload;
+    changed: typeof changed;
+};
+export declare function setPathClass({ prefix, baseHref }: Partial<{
+    prefix: string;
+    baseHref: string;
+}>): void;
 export {};

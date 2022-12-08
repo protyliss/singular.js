@@ -3,7 +3,7 @@ import {dtsPlugin} from 'esbuild-plugin-d.ts';
 import {copy} from 'esbuild-plugin-copy';
 
 const logLevel = 'debug';
-const minify   = true;
+const minify   = false;
 
 function builds(name) {
 	const entryPoints = [`./src/${name}.ts`];
@@ -39,4 +39,3 @@ function builds(name) {
 }
 
 builds('singular');
-builds('singular-ui');
