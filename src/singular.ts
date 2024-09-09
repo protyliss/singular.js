@@ -63,16 +63,16 @@ type Child<T = HTMLElement> = T & { parentNode: HTMLElement };
 type Children<T> = Array<Child<T>>;
 type ChangedElementCallback = (changedElements: ChangedElements) => void;
 
-const {documentElement}          = document
+const {documentElement} = document
 documentElement.style.visibility = 'hidden';
 
 const {href: START_URL, origin: ORIGIN} = location;
-const {isArray: IS_ARRAY, from: FROM}   = Array;
-const {keys: KEYS}                      = Object;
+const {isArray: IS_ARRAY, from: FROM} = Array;
+const {keys: KEYS} = Object;
 
-const ESM         = !document.currentScript;
+const ESM = !document.currentScript;
 const _ROOT_INDEX = /^\/index\.\w{2,4}$/;
-const _INDEX      = /\/index\.\w{2,4}$/;
+const _INDEX = /\/index\.\w{2,4}$/;
 
 let CONFIGURE: SingularConfigure = {
 	development: false,
@@ -86,11 +86,11 @@ let CONFIGURE: SingularConfigure = {
 	disableTitleChange: false
 };
 
-let RENDERED_STYLES: Record<string, HTMLLinkElement>    = {};
+let RENDERED_STYLES: Record<string, HTMLLinkElement> = {};
 let RENDERED_SCRIPTS: Record<string, HTMLScriptElement> = {};
-let LOADED                                              = false
-let CURRENT_URL                                         = getCurrentUrl(START_URL);
-let CURRENT_SCRIPT_URL                                  = getLifecycleUrl(START_URL);
+let LOADED = false
+let CURRENT_URL = getCurrentUrl(START_URL);
+let CURRENT_SCRIPT_URL = getLifecycleUrl(START_URL);
 let ABORT_CONTROLLER: AbortController;
 
 function debug(...args: any[]) {
@@ -110,23 +110,23 @@ class Page {
 	constructor(
 		public url: string,
 		public title: string,
-		public styles: string[]                            = [],
-		public scripts: string[]                           = [],
+		public styles: string[] = [],
+		public scripts: string[] = [],
 		public classes: Record<string, string> | undefined = undefined,
-		public html: string                                = ''
+		public html: string = ''
 	) {
 	}
 }
 
 class Lifecycle {
-	static seriesCallbacks: VoidPromiseCallback[]   = [];
+	static seriesCallbacks: VoidPromiseCallback[] = [];
 	static parallelCallbacks: VoidPromiseCallback[] = [];
 	static readyCallbacks: ChangedElementCallback[] = [];
-	static loadCallbacks: ChangedElementCallback[]  = [];
-	static unloadCallbacks: Function[]              = [];
+	static loadCallbacks: ChangedElementCallback[] = [];
+	static unloadCallbacks: Function[] = [];
 
 	enterCallbacks: ChangedElementCallback[] = [];
-	exitCallbacks: Function[]                = [];
+	exitCallbacks: Function[] = [];
 
 	static get current() {
 		return LIFECYCLES[CURRENT_SCRIPT_URL] || (LIFECYCLES[CURRENT_SCRIPT_URL] = new Lifecycle());
@@ -157,12 +157,12 @@ class ChangedElements extends Array<Element> {
 	}
 
 	#getElements<E extends Element = Element>(methodName: keyof Element, selectors: keyof HTMLElementTagNameMap | string): E[] {
-		const list  = [];
-		const end   = this.length;
+		const list = [];
+		const end = this.length;
 		let current = -1;
 		while (++current < end) {
-			const nodes     = this[current].querySelectorAll(selectors);
-			const nodeEnd   = nodes.length;
+			const nodes = this[current].querySelectorAll(selectors);
+			const nodeEnd = nodes.length;
 			let nodeCurrent = -1;
 			while (++nodeCurrent < nodeEnd) {
 				const node = nodes[nodeCurrent];
@@ -192,7 +192,7 @@ class ChangedElements extends Array<Element> {
 	querySelector<K extends keyof HTMLElementTagNameMap>(selectors: K): HTMLElementTagNameMap[K];
 	querySelector<K extends keyof SVGElementTagNameMap>(selectors: K): SVGElementTagNameMap[K];
 	querySelector<E extends Element = Element>(selectors: string): E | null {
-		const end   = this.length;
+		const end = this.length;
 		let current = -1;
 		while (++current < end) {
 			const node = this[current].querySelector(selectors);
@@ -242,7 +242,7 @@ export function configure(values: Partial<SingularConfigure>) {
 		if (!IS_ARRAY(classSelectors)) {
 			classSelectors = [classSelectors];
 		}
-		let current                 = classSelectors.length;
+		let current = classSelectors.length;
 		const dividedClassSelectors = [];
 		while (current-- > 0) {
 			dividedClassSelectors.push(...classSelectors[current].split(','));
@@ -266,9 +266,9 @@ export function addStyle(href: string) {
 		link,
 		promise: new Promise<void>((resolve) => {
 			const resolver = () => resolve();
-			link.onload    = resolver;
-			link.onerror   = resolver;
-			link.rel       = 'stylesheet';
+			link.onload = resolver;
+			link.onerror = resolver;
+			link.rel = 'stylesheet';
 			document.head.append(link);
 
 			link.href = href;
@@ -293,9 +293,9 @@ export function addScript(src: string, async = true) {
 				script.type = 'module';
 			}
 
-			script.onload  = resolver;
+			script.onload = resolver;
 			script.onerror = resolver;
-			script.async   = async;
+			script.async = async;
 			document.head.append(script);
 
 			script.src = src;
@@ -360,7 +360,7 @@ export function load(callback: ChangedElementCallback) {
  * @param callback
  */
 export function enter(callback: ChangedElementCallback) {
-	const {enterCallbacks}                = Lifecycle.current;
+	const {enterCallbacks} = Lifecycle.current;
 	enterCallbacks[enterCallbacks.length] = callback;
 
 	if (LOADED) {
@@ -375,7 +375,7 @@ export function enter(callback: ChangedElementCallback) {
  * @param callback
  */
 export function exit(callback: Function) {
-	const {exitCallbacks}               = Lifecycle.current;
+	const {exitCallbacks} = Lifecycle.current;
 	exitCallbacks[exitCallbacks.length] = callback;
 
 	return CHAIN;
@@ -412,7 +412,7 @@ export function route(requestUrl: string, outletSelectors?: string) {
 export function changed(changedElements: Element[] = [document.body]) {
 	const changedElements_ = new ChangedElements(changedElements);
 
-	const end   = Lifecycle.loadCallbacks.length;
+	const end = Lifecycle.loadCallbacks.length;
 	let current = -1;
 
 	while (++current < end) {
@@ -428,7 +428,7 @@ function tag<K extends keyof HTMLElementTagNameMap>(tagName: K): HTMLElementTagN
 }
 
 function fragmentHtml(html: string) {
-	const fragment     = document.createDocumentFragment();
+	const fragment = document.createDocumentFragment();
 	const fragmentHtml = tag('html');
 	fragment.appendChild(fragmentHtml);
 	fragmentHtml.innerHTML = html;
@@ -440,40 +440,40 @@ function route$(
 	this: any,
 	requestUrl: string,
 	outletSelectors: undefined | null | string = undefined,
-	push                                       = true
+	push = true
 ): Promise<Element[]> {
 
-	const {entries: styleEntries, urls: styleUrls}   = getStyles(documentElement);
+	const {entries: styleEntries, urls: styleUrls} = getStyles(documentElement);
 	const {entries: scriptEntries, urls: scriptUrls} = getScripts(documentElement);
 
-	let end     = styleEntries.length
+	let end = styleEntries.length
 	let current = -1;
 	while (++current < end) {
-		const [node, url]    = styleEntries[current];
+		const [node, url] = styleEntries[current];
 		RENDERED_STYLES[url] = node;
 	}
 
-	end     = scriptEntries.length
+	end = scriptEntries.length
 	current = -1;
 	while (++current < end) {
-		const [node, url]     = scriptEntries[current];
+		const [node, url] = scriptEntries[current];
 		RENDERED_SCRIPTS[url] = node;
 
 		document.head.append(node);
 	}
 
-	const page   = PAGES[CURRENT_URL];
-	page.url     = START_URL;
-	page.title   = document.title;
-	page.styles  = styleUrls;
+	const page = PAGES[CURRENT_URL];
+	page.url = START_URL;
+	page.title = document.title;
+	page.styles = styleUrls;
 	page.scripts = scriptUrls;
 	page.classes = getClassNameMap(document);
 
 	const {links} = document;
-	current       = links.length;
+	current = links.length;
 	while (current-- > 0) {
 		const anchor = links[current];
-		const href   = anchor.getAttribute('href');
+		const href = anchor.getAttribute('href');
 		if (!href || !(href.startsWith('./') || href.startsWith('../'))) {
 			continue;
 		}
@@ -487,7 +487,7 @@ function route$(
 	function routeAfterFirstRouted(
 		requestUrl: string,
 		outletSelectors: undefined | null | string = undefined,
-		push                                       = true
+		push = true
 	) {
 		debug(requestUrl);
 
@@ -495,8 +495,8 @@ function route$(
 		if (LOADED) {
 			const lifecycle = Lifecycle.current;
 			const callbacks = lifecycle.exitCallbacks.concat(Lifecycle.unloadCallbacks);
-			const end       = callbacks.length;
-			let current     = -1;
+			const end = callbacks.length;
+			let current = -1;
 
 			try {
 				while (++current < end) {
@@ -515,8 +515,8 @@ function route$(
 			document.title = requestUrl.substring(requestUrl.indexOf(':') + 3);
 		}
 
-		LOADED             = false;
-		CURRENT_URL        = getCurrentUrl(requestUrl);
+		LOADED = false;
+		CURRENT_URL = getCurrentUrl(requestUrl);
 		CURRENT_SCRIPT_URL = getLifecycleUrl(requestUrl);
 
 		const page = PAGES[CURRENT_URL];
@@ -524,21 +524,21 @@ function route$(
 		if (page) {
 			if (CONFIGURE.enableKeepHtml) {
 				push && pushState(getFixedUrl(page.url, requestUrl));
-				return render$(page);
+				return render$(page, outletSelectors);
 			}
 			// noinspection JSUnusedLocalSymbols
 			return request(requestUrl)
 				.then(([responseUrl, html]) => {
 					page.html = html;
 					push && pushState(responseUrl);
-					return render$(page);
+					return render$(page, outletSelectors);
 				});
 		}
 
 		return request(requestUrl)
 			.then(([responseUrl, html]) => {
 				push && pushState(responseUrl);
-				return parse$(requestUrl, responseUrl, html);
+				return parse$(requestUrl, responseUrl, html, outletSelectors);
 			});
 	}
 
@@ -570,10 +570,10 @@ function route$(
 
 	function getFixedUrl(responseUrl: string, requestUrl: string): string {
 		const parsedResponseUrl = new URL(responseUrl);
-		const parsedRequestUrl  = new URL(requestUrl);
+		const parsedRequestUrl = new URL(requestUrl);
 
 		parsedResponseUrl.search = parsedRequestUrl.search;
-		parsedResponseUrl.hash   = parsedRequestUrl.hash;
+		parsedResponseUrl.hash = parsedRequestUrl.hash;
 
 		return '' + parsedRequestUrl;
 	}
@@ -583,9 +583,9 @@ function getClassNameMap(target: Document | HTMLElement) {
 	const {classSelectors} = CONFIGURE;
 	if (classSelectors) {
 		const classes: Record<string, string> = {};
-		let current                           = classSelectors.length
+		let current = classSelectors.length
 		while (current-- > 0) {
-			const selector    = classSelectors[current];
+			const selector = classSelectors[current];
 			classes[selector] = (target.querySelector(selector) || {}).className || '';
 		}
 		return classes;
@@ -594,12 +594,17 @@ function getClassNameMap(target: Document | HTMLElement) {
 }
 
 
-function parse$(requestUrl: string, responseUrl: string, rawHtml: string): Promise<void | Element[]> {
+function parse$(
+	requestUrl: string,
+	responseUrl: string,
+	rawHtml: string,
+	outletSelectors: undefined | null | string = undefined
+): Promise<void | Element[]> {
 	const fragment = fragmentHtml(rawHtml)
-	const title    = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
+	const title = (fragment.getElementsByTagName('TITLE')[0] as HTMLElement || {}).innerText || requestUrl;
 
 
-	const {urls: styleUrls}                          = getStyles(fragment);
+	const {urls: styleUrls} = getStyles(fragment);
 	const {entries: scriptEntries, urls: scriptUrls} = getScripts(fragment);
 
 	let current = scriptEntries.length;
@@ -626,7 +631,7 @@ function parse$(requestUrl: string, responseUrl: string, rawHtml: string): Promi
 		url.pathname = url.pathname.substring(0, url.pathname.length - 1);
 	}
 	PAGES['' + url] = page;
-	return render$(page);
+	return render$(page, outletSelectors);
 }
 
 function getUrl(url: string) {
@@ -653,8 +658,8 @@ function getCurrentUrl(href: string) {
 }
 
 function getLifecycleUrl(href: string) {
-	const url  = new URL(href);
-	url.hash   = '';
+	const url = new URL(href);
+	url.hash = '';
 	url.search = '';
 
 	let {pathname} = url;
@@ -671,10 +676,16 @@ function getLifecycleUrl(href: string) {
 /**
  *
  * @param page
+ * @param outletSelectors
  */
-function render$(page: Page): Promise<void | Element[]> {
+function render$(
+	page: Page,
+	outletSelectors: undefined | null | string = undefined
+): Promise<void | Element[]> {
 	const {url, title, styles, scripts, classes, html} = page;
-	const {outletSelectors, classSelectors}            = CONFIGURE;
+	const {classSelectors} = CONFIGURE;
+
+	outletSelectors = outletSelectors || CONFIGURE.outletSelectors;
 
 	if (!CONFIGURE.disableTitleChange) {
 		document.title = title || url.substring(url.indexOf('://') + 3);
@@ -684,7 +695,7 @@ function render$(page: Page): Promise<void | Element[]> {
 		let current = classSelectors.length;
 		while (current-- > 0) {
 			const selector = classSelectors[current];
-			const target   = documentElement.querySelector(selector);
+			const target = documentElement.querySelector(selector);
 			if (target) {
 				target.className = classes[selector];
 			}
@@ -692,11 +703,11 @@ function render$(page: Page): Promise<void | Element[]> {
 	}
 
 	const fragment = fragmentHtml(html);
-	let changeAll  = false;
+	let changeAll = false;
 	let changedElements: Element[];
 	if (outletSelectors) {
 		const currentElements = document.querySelectorAll(outletSelectors);
-		changedElements       = Array.from(fragment.querySelectorAll(outletSelectors));
+		changedElements = Array.from(fragment.querySelectorAll(outletSelectors));
 
 
 		if (changedElements.length === currentElements.length) {
@@ -704,7 +715,7 @@ function render$(page: Page): Promise<void | Element[]> {
 			let current = changedElements.length;
 			while (current-- > 0) {
 				const fragmentElement = changedElements[current];
-				const currentElement  = currentElements[current];
+				const currentElement = currentElements[current];
 
 				if (fragmentElement.tagName !== currentElement.tagName) {
 					changeAll = true;
@@ -717,7 +728,7 @@ function render$(page: Page): Promise<void | Element[]> {
 				current = changedElements.length;
 				while (current-- > 0) {
 					const from = changedElements[current];
-					const to   = currentElements[current];
+					const to = currentElements[current];
 					(to.parentNode as HTMLElement).replaceChild(from, to);
 				}
 			}
@@ -730,20 +741,20 @@ function render$(page: Page): Promise<void | Element[]> {
 
 	if (changeAll) {
 		document.body.innerHTML = (fragment.getElementsByTagName('BODY')[0] || fragment).innerHTML;
-		changedElements         = [document.body];
+		changedElements = [document.body];
 	}
 
 	fragment.innerHTML = '';
 
-	const elements                        = [];
-	const importPromises                  = [Promise.resolve()];
+	const elements = [];
+	const importPromises = [Promise.resolve()];
 	const removeStyles: HTMLLinkElement[] = [];
 	let end: number;
 	let current: number;
 
 	if (!CONFIGURE.enableKeepStyles) {
 		const renderedStyleHrefs = KEYS(RENDERED_STYLES);
-		current                  = renderedStyleHrefs.length;
+		current = renderedStyleHrefs.length;
 		while (current-- > 0) {
 			let href = renderedStyleHrefs[current];
 			if (styles.indexOf(href) > -1) {
@@ -756,7 +767,7 @@ function render$(page: Page): Promise<void | Element[]> {
 	}
 
 	// add external stylesheet
-	end     = styles.length;
+	end = styles.length;
 	current = -1;
 	while (++current < end) {
 		const href = styles[current];
@@ -764,14 +775,14 @@ function render$(page: Page): Promise<void | Element[]> {
 			//     RENDERED_STYLES[href].disabled = false;
 			continue;
 		}
-		const {link, promise}                 = addStyle(href);
-		RENDERED_STYLES[href]                 = link;
+		const {link, promise} = addStyle(href);
+		RENDERED_STYLES[href] = link;
 		importPromises[importPromises.length] = promise;
-		elements[elements.length]             = link;
+		elements[elements.length] = link;
 	}
 
 	// add external script
-	end     = scripts.length;
+	end = scripts.length;
 	current = -1;
 	while (++current < end) {
 		const src = scripts[current];
@@ -779,10 +790,10 @@ function render$(page: Page): Promise<void | Element[]> {
 			// console.log(RENDERED_SCRIPTS[src], RENDERED_SCRIPTS[src].parentNode);
 			continue;
 		}
-		const {script, promise}               = addScript(src);
-		RENDERED_SCRIPTS[src]                 = script;
+		const {script, promise} = addScript(src);
+		RENDERED_SCRIPTS[src] = script;
 		importPromises[importPromises.length] = promise;
-		elements[elements.length]             = script;
+		elements[elements.length] = script;
 	}
 
 	if (elements.length) {
@@ -805,10 +816,10 @@ function render$(page: Page): Promise<void | Element[]> {
 
 function getResources<T extends HTMLElement>(parentElement: HTMLElement, selector: string, attributeName: string) {
 	const entries: Array<[T, string]> = [];
-	const urls: string[]              = [];
-	const nodes                       = FROM(parentElement.querySelectorAll(selector)) as Children<T>;
-	const end                         = nodes.length;
-	let current                       = -1;
+	const urls: string[] = [];
+	const nodes = FROM(parentElement.querySelectorAll(selector)) as Children<T>;
+	const end = nodes.length;
+	let current = -1;
 	while (++current < end) {
 		const node = nodes[current];
 
@@ -819,7 +830,7 @@ function getResources<T extends HTMLElement>(parentElement: HTMLElement, selecto
 		const value = getFixedUrl(node, attributeName)
 
 		entries[entries.length] = [node, value];
-		urls[urls.length]       = value;
+		urls[urls.length] = value;
 
 	}
 	return {entries, urls};
@@ -840,22 +851,22 @@ function getFixedUrl(node: HTMLElement, attribute: string) {
 function onLoad$(changedElements: Element[]): Promise<void | Element[]> {
 	// console.debug('before load');
 
-	const end   = Lifecycle.seriesCallbacks.length;
+	const end = Lifecycle.seriesCallbacks.length;
 	let current = -1;
 
 	let series = Promise.resolve();
 	while (++current < end) {
 		const callback = Lifecycle.seriesCallbacks[current];
-		series         = series.then(() => callback());
+		series = series.then(() => callback());
 	}
 
 	const prepares = [series];
-	current        = Lifecycle.parallelCallbacks.length;
+	current = Lifecycle.parallelCallbacks.length;
 	while (current-- > 0) {
 		prepares[prepares.length] = Lifecycle.parallelCallbacks[current]();
 	}
 
-	Lifecycle.seriesCallbacks   = [];
+	Lifecycle.seriesCallbacks = [];
 	Lifecycle.parallelCallbacks = [];
 
 	return Promise.all(prepares)
@@ -897,7 +908,7 @@ function onLoaded(changedElements: ChangedElements) {
 		...lifecycle.enterCallbacks
 	];
 
-	const end   = callbacks.length;
+	const end = callbacks.length;
 	let current = -1;
 	while (++current < end) {
 		callbacks[current](changedElements);
@@ -927,7 +938,7 @@ addEventListener(
 				node = anchor;
 		}
 
-		const {href}  = node;
+		const {href} = node;
 		const rawHref = node.getAttribute('href');
 
 		if (node.target
@@ -978,12 +989,12 @@ addEventListener(
 // Plugins
 
 
-const ORIGIN_LENGTH                = location.origin.length;
+const ORIGIN_LENGTH = location.origin.length;
 let ACTIVATED_LINKS: HTMLElement[] = [];
 
 function activateSelector(selector: string) {
 	const containers = Array.from(document.querySelectorAll(selector)) as HTMLElement[];
-	let current      = containers.length;
+	let current = containers.length;
 	while (current-- > 0) {
 		activateContainer(containers[current]);
 	}
@@ -991,7 +1002,7 @@ function activateSelector(selector: string) {
 
 function inactivateAnchors() {
 	const anchors = ACTIVATED_LINKS;
-	let current   = anchors.length;
+	let current = anchors.length;
 	while (current-- > 0) {
 		anchors[current].classList.remove('_active');
 	}
@@ -1003,7 +1014,7 @@ function activateContainer(container: HTMLElement) {
 	const currentPath = getUrl(location.href.substring(ORIGIN_LENGTH));
 
 	const anchors = container.getElementsByTagName('A') as any as HTMLAnchorElement[];
-	let current   = anchors.length;
+	let current = anchors.length;
 	while (current-- > 0) {
 		let anchor = anchors[current];
 		const href = getUrl(anchor.href.substring(ORIGIN_LENGTH));
@@ -1071,25 +1082,25 @@ export function setPathClass({prefix, baseHref}: Partial<{ prefix: string, baseH
 			pathname = pathname.substring(0, pathname.length - 1);
 		}
 
-		const classNames        = [];
+		const classNames = [];
 		const classNamePrefixes = [prefix]
-		const segments          = (pathname.slice(offset) || 'index').split('/');
-		const end               = segments.length;
-		let current             = -1;
+		const segments = (pathname.slice(offset) || 'index').split('/');
+		const end = segments.length;
+		let current = -1;
 		while (++current < end) {
 			const segment = segments[current];
 
 			let lastCurrent = classNamePrefixes.length;
 			while (lastCurrent-- > 0) {
-				const lastClassName            = classNamePrefixes[lastCurrent];
-				let className                  = lastClassName + '_' + segment;
-				classNames[classNames.length]  = className;
+				const lastClassName = classNamePrefixes[lastCurrent];
+				let className = lastClassName + '_' + segment;
+				classNames[classNames.length] = className;
 				classNamePrefixes[lastCurrent] = className;
 
 				// @ts-ignore
 				if (+segment == segment) {
-					className                                   = lastClassName + '_*';
-					classNames[classNames.length]               = className;
+					className = lastClassName + '_*';
+					classNames[classNames.length] = className;
 					classNamePrefixes[classNamePrefixes.length] = className;
 				}
 			}
